@@ -42,7 +42,7 @@ import nifsUtils as nifsUtils
 # Import config parsing.
 # Import config parsing.
 from configobj.configobj import ConfigObj
-from objectoriented.getConfig import GetConfig
+from objectoriented.GetConfig import GetConfig
 # Import custom Nifty functions.
 from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interactiveNIFSInput
 

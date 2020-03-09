@@ -46,7 +46,7 @@ import nifsUtils as nifsUtils
 # Import configuration file parsing.
 from configobj.configobj import ConfigObj
 # Import custom pipeline setup Class.
-from objectoriented.getConfig import GetConfig
+from objectoriented.GetConfig import GetConfig
 # Conveniently import some utility functions so we don't have to type the full name.
 from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interactiveNIFSInput
 
