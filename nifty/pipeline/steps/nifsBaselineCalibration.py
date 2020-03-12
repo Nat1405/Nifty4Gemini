@@ -28,7 +28,7 @@
 
 # STDLIB
 
-import logging, os, pkg_resources, glob, shutil
+import logging, os, pkg_resources, glob, shutil, sys
 import astropy.io.fits
 from pyraf import iraf, iraffunctions
 
@@ -648,17 +648,18 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
 
     # Set interactive mode. Default False for standard configurations (and True for non-standard wavelength configurations ).
     pauseFlag = False
+    interative = 'no'
 
     if band == "K" and central_wavelength == 2.20:
         clist=RUNTIME_DATA_PATH+"k_ar.dat"
         my_thresh = 50.0
-    elif band == "J":
+    elif band == "J" and central_wavelength == 1.25:
         clist=RUNTIME_DATA_PATH+"j_ar.dat"
         my_thresh=100.0
-    elif band == "H":
+    elif band == "H" and central_wavelength == 1.65:
         clist=RUNTIME_DATA_PATH+"h_ar.dat"
         my_thresh=100.0
-    elif band == "Z":
+    elif band == "Z" and central_wavelength == 1.05:
         clist="nifs$data/ArXe_Z.dat"
         my_thresh=100.0
     else:
@@ -676,6 +677,7 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
         clist="gnirs$data/argon.dat"
         my_thresh=100.0
         interactive = 'yes'
+        pauseFlag = True
 
     # TODO(nat): I don't like this nesting at all
     if not pauseFlag:
@@ -686,19 +688,18 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
             if over:
                 iraf.delete("wrgn"+arc+".fits")
                 iraf.nswavelength("rgn"+arc, coordli=clist, nsum=10, thresho=my_thresh, \
-                                  trace='yes', fwidth=2.0, match=-6,cradius=8.0,fl_inter='no',nfound=10,nlost=10, \
+                                  trace='yes', fwidth=2.0, match=-6,cradius=8.0,fl_inter=interactive,nfound=10,nlost=10, \
                                   logfile=log)
             else:
                 print "\nOutput file exists and -over not set - ",\
                 "not determining wavelength solution and recreating the wavelength reference arc.\n"
         else:
             iraf.nswavelength("rgn"+arc, coordli=clist, nsum=10, thresho=my_thresh, \
-                              trace='yes', fwidth=2.0, match=-6,cradius=8.0,fl_inter='no',nfound=10,nlost=10, \
+                              trace='yes', fwidth=2.0, match=-6,cradius=8.0,fl_inter=interactive,nfound=10,nlost=10, \
                               logfile=log)
     else:
-        a = raw_input("For now, interactive Z or non-standard wavelength calibrations are unsupported. " + \
-        "Bugs running IRAF tasks interactively from python mean iraf.nswavelength cannot be activated automatically. " + \
-        "Therefore please run iraf.nswavelength() interactively from Pyraf to do a wavelength calibration by hand.")
+        print "ERROR: For now, only some wavelength configurations are supported. The grating/central wavelength(microns) possibilities are Z/1.05, J/1.25, H/1.65, K/2.20."
+        sys.exit(1)
 
     # Copy to relevant science observation/calibrations/ directories
     for item in glob.glob('database/idwrgn*'):
