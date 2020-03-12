@@ -53,7 +53,7 @@ from ..downloadFromGeminiPublicArchive import download_query_gemini
 # Paths to Nifty data.
 RECIPES_PATH = pkg_resources.resource_filename('nifty', 'recipes/')
 RUNTIME_DATA_PATH = pkg_resources.resource_filename('nifty', 'runtimeData/')
-
+    
 
 def start():
     """
@@ -423,12 +423,15 @@ def makePythonLists(rawPath, skyThreshold):
         date = header[0].header['DATE'].replace('-','')
         # Make sure no duplicate dates are being entered.
         if flatlist.index(flat)==0 or not oldobsid==obsid:
-            if date in sciDateList:
-                list1 = [date, obsid]
-            else:
-                list1 = [sciDateList[n], obsid]
+            #if date in sciDateList:
+            list1 = [date, obsid]
             obsidDateList.append(list1)
-            n+=1
+            #else:
+                # Ugly fix, we have to check there aren't more flats than science dates.
+            #    if n < len(sciDateList):
+            #        list1 = [sciDateList[n], obsid]
+             #       obsidDateList.append(list1)
+            #n+=1
         oldobsid = obsid
 
     os.chdir(path)
@@ -848,11 +851,11 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
                                     if path1+'/'+entry[0]+'/'+entry[1]+'/Calibrations_'+grating not in calDirList:
                                         calDirList.append(path1+'/'+entry[0]+'/'+entry[1]+'/Calibrations_'+grating)
                                 # Copy lamps on flats to appropriate directory.
-                                shutil.copy('./'+flatlist[i][0], objDir+'/Calibrations_'+grating+'/')
+                                shutil.copy('./'+flatlist[i][0], path1+'/'+entry[0]+'/'+entry[1]+'/Calibrations_'+grating)
                                 flatlist[i][1] = 0
                                 logging.info(flatlist[i][0])
                                 count += 1
-                                path = objDir+'/Calibrations_'+grating+'/'
+                                path = path1+'/'+entry[0]+'/'+entry[1]+'/Calibrations_'+grating+'/'
                                 # Create a flatlist in the relevent directory.
                                 # Create a text file called flatlist to store the names of the
                                 # lamps on flats for later use by the pipeline.
