@@ -226,6 +226,9 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
         # temp3 == ('/Users/ncomeau/research/newer-nifty/hd165459', '20160705')
         # temp4 == ('/Users/ncomeau/research/newer-nifty', 'hd165459')
 
+        if not obsDir:
+            raise ValueError("nifsMerge: There was a problem with the science directory list.")
+
         # TODO: make this clearer.
         temp1 = os.path.split(obsDir)
         temp2 = os.path.split(temp1[0])
@@ -236,7 +239,10 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
         obsid = temp1[1]
         obsPath = temp3[0]
         targetDirectory = temp4[0]
-        os.chdir(obsDir + '/'+unmergedDirectory)
+        try:
+            os.chdir(obsDir + '/'+unmergedDirectory)
+        except OSError:
+            raise OSError("nifsMerge: a science directory didn't exist.")
 
         obsidlist.append(obsPath+'/Merged'+suffix+'/'+date+'_'+obsid)
 
