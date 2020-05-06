@@ -648,7 +648,7 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
 
     # Set interactive mode. Default False for standard configurations (and True for non-standard wavelength configurations ).
     pauseFlag = False
-    interative = 'no'
+    interactive = 'no'
 
     if band == "K" and central_wavelength == 2.20:
         clist=RUNTIME_DATA_PATH+"k_ar.dat"
