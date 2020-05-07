@@ -1186,7 +1186,7 @@ def MEFarith(MEF, image, op, result):
 
 #-----------------------------------------------------------------------------#
 
-def download_query_cadc(program, directory='./rawData'):
+def downloadQueryCadc(program, directory='./rawData'):
     """
     Finds and downloads all CADC files for a particular gemini program ID to
     the current working directory.
@@ -1214,7 +1214,7 @@ def download_query_cadc(program, directory='./rawData'):
             raise e
 
 
-def get_file(url):
+def getFile(url):
     """
     Gets a file from the specified url and returns the filename.
     """
