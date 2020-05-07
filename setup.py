@@ -41,7 +41,7 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
     ],
     keywords='Gemini NIFS nifs pipeline reduction data IRAF iraf PYRAF pyraf astronomy integral field spectroscopy ifs ifu',
-    python_requires='~=2.7',
+    python_requires='<=2.7.17',
     scripts=SCRIPTS, # TODO(nat): Update this to use entry_points instead of scripts for better cross-platform performance
     packages=find_packages(),
     package_data=PACKAGE_DATA

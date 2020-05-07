@@ -26,7 +26,7 @@
 
 # STDLIB
 
-import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections
+import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests
 import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
@@ -1206,7 +1206,17 @@ def download_query_cadc(program, directory='./rawData'):
     urls = cadc.get_data_urls(result)
     for url, pid in zip(urls, pids):
         try:
-            urllib.urlretrieve(url, directory+'/'+pid+'.fits')
+            r = requests.get(url, stream=True)
+            # Parse out filename from header
+            filename = re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
+            # Check that filename makes sense (ie starts with N and ends with .fits)
+            pattern = re.compile(r"N.*\.fits")
+            if not pattern.match(filename):
+                raise ValueError("Bad download filename.")
+            # Write the fits file
+            with open(directory+'/'+filename, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=128):
+                    f.write(chunk)
             logging.debug("Downloaded {}".format(directory+'/'+pid+'.fits'))
         except Exception as e:
             logging.error("A frame failed to download.")
