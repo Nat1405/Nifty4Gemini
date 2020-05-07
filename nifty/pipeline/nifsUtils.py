@@ -211,9 +211,9 @@ def interactiveNIFSInput():
         "You can provide a cookie from your Gemini public archive login session to automatically " + \
         "download proprietary data."
         )
-        cadc = getParam(
-        "Download from CADC? If no download will be from Gemini. [no]: ",
-        'no',
+        dataSource = getParam(
+        "Select a raw data source; 'GSA' for Gemini Science Archive, 'CADC' for Canadian Astronomy Data Centre. [GSA]: ",
+        'GSA',
         "Automatic downloads can happen from either the Gemini Science Archive or the Canadian Astronomy Data Centre."
         )
         skyThreshold = getParam(
@@ -419,7 +419,7 @@ def interactiveNIFSInput():
         config['sortConfig']['rawPath'] = rawPath
         config['sortConfig']['program'] = program
         config['sortConfig']['proprietaryCookie'] = proprietaryCookie
-        config['sortConfig']['cadc'] = cadc
+        config['sortConfig']['dataSource'] = dataSource
         config['sortConfig']['skyThreshold'] = skyThreshold
         config['sortConfig']['sortTellurics'] = sortTellurics
         config['sortConfig']['telluricTimeThreshold'] = telluricTimeThreshold
@@ -1206,7 +1206,7 @@ def downloadQueryCadc(program, directory='./rawData'):
     urls = cadc.get_data_urls(result)
     for url, pid in zip(urls, pids):
         try:
-            filename = get_file(url)
+            filename = getFile(url)
             shutil.move(filename, directory+'/'+filename)
             logging.debug("Downloaded {}".format(filename))
         except Exception as e:

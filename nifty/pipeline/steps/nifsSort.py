@@ -44,7 +44,7 @@ from ..configobj.configobj import ConfigObj
 # TODO(nat): goodness, this is a lot of functions. It would be nice to split this up somehow.
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
-rewriteSciImageList, datefmt, download_query_cadc
+rewriteSciImageList, datefmt, downloadQueryCadc
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -127,7 +127,7 @@ def start():
         sortConfig = options['sortConfig']
         rawPath = sortConfig['rawPath']
         program = sortConfig['program']
-        cadc = sortConfig['cadc']
+        dataSource = sortConfig['dataSource']
         proprietaryCookie = sortConfig['proprietaryCookie']
         skyThreshold = sortConfig['skyThreshold']
         sortTellurics = sortConfig['sortTellurics']
@@ -144,10 +144,10 @@ def start():
     if program:
         if not os.path.exists('./rawData'):
             os.mkdir('./rawData')
-        if cadc:
+        if dataSource == 'CADC':
             logging.info('\nDownloading data from the CADC archive to ./rawData. This will take a few minutes.')
-            download_query_cadc(program, os.getcwd()+'/rawData')
-        else:
+            downloadQueryCadc(program, os.getcwd()+'/rawData')
+        elif dataSource == 'GSA':
             url = 'https://archive.gemini.edu/download/'+ str(program) + '/notengineering/NotFail/present/canonical'
             logging.info('\nDownloading data from Gemini public archive to ./rawData. This will take a few minutes.')
             logging.info('\nURL used for the download: \n' + str(url))
@@ -155,6 +155,8 @@ def start():
                 download_query_gemini(url, './rawData', proprietaryCookie)
             else:
                 download_query_gemini(url, './rawData')
+        else:
+            raise ValueError("Invalid dataSource in config file.")
         
         rawPath = os.getcwd()+'/rawData'
 

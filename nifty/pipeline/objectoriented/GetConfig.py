@@ -60,6 +60,14 @@ class GetConfig(object):
 
         self.makeConfig()
 
+    def checkConfigExists(self, configFile):
+        """
+        Checks that a config file exists and if not, sets Nifty to use default configuration.
+        """
+        if os.path.exists(configFile):
+            os.remove(configFile)
+            shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
+
     def makeConfig(self):
         """
         Make a configuration file.
@@ -73,7 +81,7 @@ class GetConfig(object):
         # Ability to repeat the last data reduction
         self.parser.add_argument('-r', '--repeat', dest = 'repeat', default = False, action = 'store_true', help = 'Repeat the last data reduction, loading saved reduction parameters from runtimeData/config.cfg.')
         # Specify where downloads come from; either Gemini or CADC.
-        self.parser.add_argument('-c', '--cadc', dest = 'cadc', default = False, action = 'store_true', help = 'Download raw data from Canadian Astronomy Data Centre rather than the Gemini Science Archive.')
+        self.parser.add_argument('-d', '--data-source', dest = 'dataSource', default = 'GSA', action = 'store', help = 'Download raw data from the Canadian Astronomy Data Centre or the Gemini Science Archive. Valid options are "GSA" or "CADC".')
         # Ability to load a built-in configuration file (recipe)
         self.parser.add_argument('-l', '--recipe', dest = 'recipe', action = 'store', help = 'Load data reduction parameters from the a provided recipe. Default is default_input.cfg.')
         # Ability to load your own configuration file
@@ -87,7 +95,7 @@ class GetConfig(object):
         self.repeat = self.args.repeat
         self.fullReduction = self.args.fullReduction
         self.inputfile = self.args.inputfile
-        self.cadc = self.args.cadc
+        self.dataSource = self.args.dataSource
 
         if self.inputfile:
             # Load input from a .cfg file user specified at command line.
@@ -105,10 +113,7 @@ class GetConfig(object):
             self.fullReduction = interactiveNIFSInput()
 
         if self.fullReduction:
-            # Copy default input and use it
-            if os.path.exists('./' + self.configFile):
-                os.remove('./' + self.configFile)
-            shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', './'+ self.configFile)
+            self.checkConfigExists(self.configFile)
             # Update default config file with path to raw data or program ID.
             with open('./' + self.configFile, 'r') as self.config_file:
                 self.config = ConfigObj(self.config_file, unrepr=True)
@@ -125,8 +130,10 @@ class GetConfig(object):
                 self.config.write(self.outfile)
             logging.info("\nData reduction parameters for this reduction were copied from recipes/defaultConfig.cfg to ./config.cfg.")
 
-        if self.cadc:
+        # If user selects a non-default data source, change it in the config file.
+        if self.dataSource != 'GSA':
             try:
+                self.checkConfigExists(self.configFile)
                 with open('./' + self.configFile, 'r') as self.config_file:
                     self.config = ConfigObj(self.config_file, unrepr=True)
                     self.config['sortConfig']['cadc'] = self.cadc
