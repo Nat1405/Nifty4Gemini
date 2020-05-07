@@ -148,13 +148,10 @@ def start():
             logging.info('\nDownloading data from the CADC archive to ./rawData. This will take a few minutes.')
             downloadQueryCadc(program, os.getcwd()+'/rawData')
         elif dataSource == 'GSA':
-            url = 'https://archive.gemini.edu/download/'+ str(program) + '/notengineering/NotFail/present/canonical'
-            logging.info('\nDownloading data from Gemini public archive to ./rawData. This will take a few minutes.')
-            logging.info('\nURL used for the download: \n' + str(url))
             if proprietaryCookie:
-                download_query_gemini(url, './rawData', proprietaryCookie)
+                download_query_gemini(program, './rawData', proprietaryCookie)
             else:
-                download_query_gemini(url, './rawData')
+                download_query_gemini(program, './rawData')
         else:
             raise ValueError("Invalid dataSource in config file.")
         

@@ -1206,7 +1206,6 @@ def downloadQueryCadc(program, directory='./rawData'):
     urls = cadc.get_data_urls(result)
     for url, pid in zip(urls, pids):
         try:
-            filename = getFile(url)
             shutil.move(filename, directory+'/'+filename)
             logging.debug("Downloaded {}".format(filename))
         except Exception as e:
