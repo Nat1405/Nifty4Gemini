@@ -72,6 +72,8 @@ class GetConfig(object):
         self.parser.add_argument('-i', '--interactive', dest = 'interactive', default = False, action = 'store_true', help = 'Create a config.cfg file interactively.')
         # Ability to repeat the last data reduction
         self.parser.add_argument('-r', '--repeat', dest = 'repeat', default = False, action = 'store_true', help = 'Repeat the last data reduction, loading saved reduction parameters from runtimeData/config.cfg.')
+        # Specify where downloads come from; either Gemini or CADC.
+        self.parser.add_argument('-c', '--cadc', dest = 'cadc', default = False, action = 'store_true', help = 'Download raw data from Canadian Astronomy Data Centre rather than the Gemini Science Archive.')
         # Ability to load a built-in configuration file (recipe)
         self.parser.add_argument('-l', '--recipe', dest = 'recipe', action = 'store', help = 'Load data reduction parameters from the a provided recipe. Default is default_input.cfg.')
         # Ability to load your own configuration file
@@ -85,6 +87,7 @@ class GetConfig(object):
         self.repeat = self.args.repeat
         self.fullReduction = self.args.fullReduction
         self.inputfile = self.args.inputfile
+        self.cadc = self.args.cadc
 
         if self.inputfile:
             # Load input from a .cfg file user specified at command line.
@@ -121,3 +124,14 @@ class GetConfig(object):
             with open('./' + self.configFile, 'w') as self.outfile:
                 self.config.write(self.outfile)
             logging.info("\nData reduction parameters for this reduction were copied from recipes/defaultConfig.cfg to ./config.cfg.")
+
+        if self.cadc:
+            try:
+                with open('./' + self.configFile, 'r') as self.config_file:
+                    self.config = ConfigObj(self.config_file, unrepr=True)
+                    self.config['sortConfig']['cadc'] = self.cadc
+                with open('./' + self.configFile, 'w') as self.outfile:
+                    self.config.write(self.outfile)
+                logging.debug("Set CADC flag in config file.")
+            except:
+                raise ValueError("Failed to set CADC download option.")

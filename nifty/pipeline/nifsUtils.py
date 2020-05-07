@@ -26,10 +26,11 @@
 
 # STDLIB
 
-import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re
+import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections
 import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
+from astroquery.cadc import Cadc
 
 # LOCAL
 
@@ -74,7 +75,7 @@ def interactiveNIFSInput():
 
     """
 
-    logging.info("\nWelcome to Nifty! The current mode is NIFS data reduction.\n\nPress enter to accept default data reduction options.")
+    logging.info("\nWelcome to Nifty! The current mode is NIFS data reduction.\n\nPress enter to accept default data reduction options. Type 'yes' or 'no' when prompted.")
 
     fullReduction = getParam(
                 "Do a full data reduction with default parameters loaded from recipes/defaultConfig.cfg? [no]: ",
@@ -196,7 +197,7 @@ def interactiveNIFSInput():
         rawPath = getParam(
         "Path to raw files directory? []: ",
         "",
-        "An example of a valid raw files path string: \"/Users/nat/data/spaceMonster\""
+        "An example of a valid raw files path string: \"/Users/nat/data/\""
         )
         program = getParam(
         "Gemini Program ID? []: ",
@@ -207,8 +208,13 @@ def interactiveNIFSInput():
         proprietaryCookie = getParam(
         "Cookie for proprietary downloads? []: ",
         '',
-        "You can provide a cookie from you Gemini public archive login session to automatically "
+        "You can provide a cookie from your Gemini public archive login session to automatically " + \
         "download proprietary data."
+        )
+        cadc = getParam(
+        "Download from CADC? If no download will be from Gemini. [no]: ",
+        'no',
+        "Automatic downloads can happen from either the Gemini Science Archive or the Canadian Astronomy Data Centre."
         )
         skyThreshold = getParam(
         "Sky threshold? [2.0]: ",
@@ -291,7 +297,7 @@ def interactiveNIFSInput():
         # Some of these are disabled (for now!) because of bugs in interactive Pyraf tasks.
         # TODO(nat): when interactive is fixed re-enable this.
         # Temp fix:
-        hlineinter = getParam(
+        hLineInter = getParam(
         "Interative H-line removal? [no]: ",
         False,
         "WARNING: This is currently broken due to bugs in interactive PyRAF tasks. Use with caution."
@@ -413,6 +419,7 @@ def interactiveNIFSInput():
         config['sortConfig']['rawPath'] = rawPath
         config['sortConfig']['program'] = program
         config['sortConfig']['proprietaryCookie'] = proprietaryCookie
+        config['sortConfig']['cadc'] = cadc
         config['sortConfig']['skyThreshold'] = skyThreshold
         config['sortConfig']['sortTellurics'] = sortTellurics
         config['sortConfig']['telluricTimeThreshold'] = telluricTimeThreshold
@@ -455,6 +462,21 @@ def interactiveNIFSInput():
         config['mergeConfig']['mergeType'] = mergeType
         config['mergeConfig']['use_pq_offsets'] = use_pq_offsets
         config['mergeConfig']['im3dtran'] = im3dtran
+
+        # Convert yes/no responses to True/False
+        def update(u):
+            for k, v in u.iteritems():
+                if isinstance(v, collections.Mapping):
+                    u[k] = update(u.get(k))
+                else:
+                    if u[k] == 'yes':
+                        u[k] = True
+                    elif u[k] == 'no':
+                        u[k] = False
+            return u
+
+        update(config)
+
 
         with open('./config.cfg', 'w') as outfile:
             config.write(outfile)
@@ -1163,3 +1185,47 @@ def MEFarith(MEF, image, op, result):
             iraf.imarith(operand1=result+'['+str(i)+']', op=op, operand2 = image, result = result+'['+str(i)+', overwrite]', divzero = 0.0)
 
 #-----------------------------------------------------------------------------#
+
+def download_query_cadc(program, directory='./rawData'):
+    """
+    Finds and downloads all CADC files for a particular gemini program ID to
+    the current working directory.
+    """
+
+    cadc = Cadc()
+    job = cadc.create_async("SELECT observationID, publisherID, productID FROM caom2.Observation \
+                             AS o JOIN caom2.Plane AS p ON o.obsID=p.obsID \
+                             WHERE instrument_name='NIFS' AND proposal_id={}".format("'"+program+"'"))
+    job.run().wait()
+    job.raise_if_error()
+    result = job.fetch_result().to_table()
+
+    # Store product id's for later
+    pids = list(result['productID'])
+
+    urls = cadc.get_data_urls(result)
+    for url, pid in zip(urls, pids):
+        try:
+            urllib.urlretrieve(url, directory+'/'+pid+'.fits')
+            logging.debug("Downloaded {}".format(directory+'/'+pid+'.fits'))
+        except Exception as e:
+            logging.error("A frame failed to download.")
+            raise e
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#-----------------------------------------------------------------------------#
+

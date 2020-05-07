@@ -77,7 +77,7 @@ from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interac
 
 # The current version:
 # TODO(nat): fix this to import the version from setup.py.
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 # The time when Nifty was started is:
 startTime = str(datetime.now())
@@ -101,7 +101,6 @@ def start(args):
     """
     # Save starting path for later use and change one directory up.
     path = os.getcwd()
-    print "IT WORKED!"
     # Get paths to built-in Nifty data. Special code in setup.py makes sure recipes/ and
     # runtimeData/ will be installed when someone installs Nifty, and accessible in this way.
     RECIPES_PATH = pkg_resources.resource_filename('nifty', 'recipes/')
@@ -127,9 +126,7 @@ def start(args):
     logging.info("#             NIFTY                #")
     logging.info("#   NIFS Data Reduction Pipeline   #")
     logging.info("#         Version "+ __version__+ "            #")
-    logging.info("#         July 25th, 2017          #")
-    logging.info("#     Marie Lemoine-Busserolle     #")
-    logging.info("# Gemini Observatory, Hilo, Hawaii #")
+    logging.info("#              2020                #")
     logging.info("#                                  #")
     logging.info("####################################\n")
 
