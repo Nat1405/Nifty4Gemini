@@ -64,9 +64,17 @@ class GetConfig(object):
         """
         Checks that a config file exists and if not, sets Nifty to use default configuration.
         """
+        if not os.path.exists(configFile):
+            shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
+
+    def overwriteWithDefault(self, configFile):
+        """
+        Overwrites with default configuration.
+        """
         if os.path.exists(configFile):
             os.remove(configFile)
             shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
+
 
     def makeConfig(self):
         """
@@ -113,7 +121,7 @@ class GetConfig(object):
             self.fullReduction = interactiveNIFSInput()
 
         if self.fullReduction:
-            self.checkConfigExists(self.configFile)
+            self.overwriteWithDefault(self.configFile)
             # Update default config file with path to raw data or program ID.
             with open('./' + self.configFile, 'r') as self.config_file:
                 self.config = ConfigObj(self.config_file, unrepr=True)
@@ -136,9 +144,9 @@ class GetConfig(object):
                 self.checkConfigExists(self.configFile)
                 with open('./' + self.configFile, 'r') as self.config_file:
                     self.config = ConfigObj(self.config_file, unrepr=True)
-                    self.config['sortConfig']['cadc'] = self.cadc
+                    self.config['sortConfig']['dataSource'] = self.dataSource
                 with open('./' + self.configFile, 'w') as self.outfile:
                     self.config.write(self.outfile)
-                logging.debug("Set CADC flag in config file.")
+                logging.debug("Set dataSource option in config file.")
             except:
-                raise ValueError("Failed to set CADC download option.")
+                raise ValueError("Failed to set dataSource option.")
