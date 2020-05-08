@@ -1220,7 +1220,13 @@ def getFile(url):
     """
     r = requests.get(url, stream=True)
     # Parse out filename from header
-    filename = re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
+    try:
+        filename = re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
+    except KeyError:
+        # 'Content-Disposition' header wasn't found, so parse filename from URL
+        # Typical URL looks like:
+        # https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/GEM/N20140505S0114.fits?RUNID=mf731ukqsipqpdgk
+        filename = (url.split('/')[-1]).split('?')[0]
     # Write the fits file
     with open(filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=128):
