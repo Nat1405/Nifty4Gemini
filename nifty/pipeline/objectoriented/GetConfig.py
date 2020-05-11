@@ -73,7 +73,7 @@ class GetConfig(object):
         """
         if os.path.exists(configFile):
             os.remove(configFile)
-            shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
+        shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
 
 
     def makeConfig(self):
