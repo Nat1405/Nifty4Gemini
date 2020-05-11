@@ -1,3 +1,9 @@
+# Fixes bug in graphical pyraf tasks
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use("TkAgg")
+
 import sys, glob, shutil, getopt, os, time, logging, glob, sgmllib, urllib, re, traceback, pkg_resources
 import pexpect as p
 from pyraf import iraf, iraffunctions

@@ -28,7 +28,12 @@
 ################################################################################
 
 # STDLIB
-
+# Fixes bug in graphical pyraf tasks
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use("TkAgg")
+   
 from xml.dom.minidom import parseString
 import urllib
 from pyraf import iraf

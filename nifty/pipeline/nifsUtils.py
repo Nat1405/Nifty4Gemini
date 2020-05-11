@@ -25,6 +25,11 @@
 ################################################################################
 
 # STDLIB
+# Fixes bug in graphical pyraf tasks
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use("TkAgg")
 
 import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib, tempfile
 import numpy as np

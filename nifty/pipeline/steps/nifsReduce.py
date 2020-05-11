@@ -27,6 +27,11 @@
 ################################################################################
 
 # STDLIB
+# Fixes bug in graphical pyraf tasks
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use("TkAgg")
 
 import sys, glob, shutil, os, time, logging, glob, urllib, re, pkg_resources
 from pyraf import iraf, iraffunctions

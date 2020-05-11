@@ -21,7 +21,12 @@
 # SOFTWARE.
 
 # STDLIB
-
+# Fixes bug in graphical pyraf tasks
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use("TkAgg")
+   
 import glob, shutil, os, logging, glob, urllib, re, traceback, pkg_resources
 from pyraf import iraf, iraffunctions
 import astropy.io.fits
