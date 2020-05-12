@@ -1396,13 +1396,19 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
                         sciheader = astropy.io.fits.open(image+'.fits')
                         sciObsid = 'obs'+ sciheader[0].header['OBSID'][-3:].replace('-','')
                         if not os.path.exists(telobs+'/scienceMatchedTellsList'):
-                            writeList(sciObsid, 'scienceMatchedTellsList', telobs)
+                            with open(telobs+"/scienceMatchedTellsList", "w") as f:
+                                f.write(sciObsid+'\n')
+                            #writeList(sciObsid, 'scienceMatchedTellsList', telobs)
                         else:
                             scienceMatchedTellsList = open(telobs+'/scienceMatchedTellsList', 'r').readlines()
                             scienceMatchedTellsList = [item.strip() for item in scienceMatchedTellsList]
                             if sciObsid not in scienceMatchedTellsList:
-                                writeList(sciObsid, 'scienceMatchedTellsList', telobs)
-                        writeList(image, 'scienceMatchedTellsList', telobs)
+                                with open(telobs+'.scienceMatchedTellsList', 'a') as f:
+                                    f.write(sciObsid+'\n')
+                                #writeList(sciObsid, 'scienceMatchedTellsList', telobs)
+                        #writeList(image, 'scienceMatchedTellsList', telobs)
+                        with open(telobs+'/scienceMatchedTellsList', 'a') as f:
+                            f.write(image.rstrip('.fits')+'\n')
     os.chdir(path)
 
     # ---------------------------- Tests ------------------------------------- #

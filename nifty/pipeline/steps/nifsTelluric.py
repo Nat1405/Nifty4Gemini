@@ -412,7 +412,7 @@ def getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature
 
     with open(starfile,'r') as sf:
         lines = sf.readlines()
-    logging.info("\nContents of std_starRAWNAME.txt:")
+    logging.info("\nContents of std_star{}.txt:".format(rawFrame))
     for line in lines:
         logging.info(line)
 

@@ -450,11 +450,13 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
     # rows of pixels of each slice as bad pixels.
     header = astropy.io.fits.open(calflat+'.fits')
     grat = header[0].header['GRATING'][0:1]
-    if grat == 'Z' or grat == 'J':
+    crWav = float(header[0].header['GRATWAVE'])
+    
+    if ('Z' in grat and abs(crWav-1.05) < 0.01) or ('J' in grat and abs(crWav-1.25) < 0.01):
         flo = 0.07
         fup = 1.55
         inter = 'no'
-    elif grat == 'H' or grat == 'K':
+    elif ('H' in grat and abs(crWav-1.65) < 0.01) or ('K' in grat and abs(crWav-2.20) < 0.01):
         flo = 0.05
         fup = 1.55
         inter = 'no'
@@ -655,16 +657,16 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
     pauseFlag = False
     interactive = 'no'
 
-    if band == "K" and central_wavelength == 2.20:
+    if band == "K" and abs(central_wavelength - 2.20) < 0.01:
         clist=RUNTIME_DATA_PATH+"k_ar.dat"
         my_thresh = 50.0
-    elif band == "J" and central_wavelength == 1.25:
+    elif band == "J" and abs(central_wavelength - 1.25) < 0.01:
         clist=RUNTIME_DATA_PATH+"j_ar.dat"
         my_thresh=100.0
-    elif band == "H" and central_wavelength == 1.65:
+    elif band == "H" and abs(central_wavelength - 1.65) < 0.01:
         clist=RUNTIME_DATA_PATH+"h_ar.dat"
         my_thresh=100.0
-    elif band == "Z" and central_wavelength == 1.05:
+    elif band == "Z" and abs(central_wavelength - 1.05) < 0.01:
         clist="nifs$data/ArXe_Z.dat"
         my_thresh=100.0
     else:
