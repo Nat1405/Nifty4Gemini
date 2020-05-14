@@ -65,7 +65,7 @@ class GetConfig(object):
         Checks that a config file exists and if not, sets Nifty to use default configuration.
         """
         if not os.path.exists(configFile):
-            shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
+            shutil.copy(os.path.join(self.RECIPES_PATH,'defaultConfig.cfg'), configFile)
 
     def overwriteWithDefault(self, configFile):
         """
@@ -73,7 +73,7 @@ class GetConfig(object):
         """
         if os.path.exists(configFile):
             os.remove(configFile)
-        shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', configFile)
+        shutil.copy(os.path.join(self.RECIPES_PATH,'defaultConfig.cfg'), configFile)
 
 
     def makeConfig(self):
@@ -107,9 +107,9 @@ class GetConfig(object):
 
         if self.inputfile:
             # Load input from a .cfg file user specified at command line.
-            if self.inputfile != self.configFile and os.path.exists('./'+ self.configFile):
-                os.remove('./'+ self.configFile)
-                shutil.copy(self.inputfile, './'+ self.configFile)
+            if self.inputfile != self.configFile and os.path.exists(self.configFile):
+                os.remove(self.configFile)
+                shutil.copy(self.inputfile, self.configFile)
             logging.info("\nPipeline configuration for this data reduction was read from " + str(self.inputfile) + \
             ", and if not named config.cfg, copied to ./config.cfg.")
 
@@ -123,7 +123,7 @@ class GetConfig(object):
         if self.fullReduction:
             self.overwriteWithDefault(self.configFile)
             # Update default config file with path to raw data or program ID.
-            with open('./' + self.configFile, 'r') as self.config_file:
+            with open(self.configFile, 'r') as self.config_file:
                 self.config = ConfigObj(self.config_file, unrepr=True)
                 self.sortConfig = self.config['sortConfig']
                 if self.fullReduction[0] == "G":
@@ -134,7 +134,7 @@ class GetConfig(object):
                     # Else treat it as a path.
                     self.sortConfig['program'] = ""
                     self.sortConfig['rawPath'] = self.fullReduction
-            with open('./' + self.configFile, 'w') as self.outfile:
+            with open(self.configFile, 'w') as self.outfile:
                 self.config.write(self.outfile)
             logging.info("\nData reduction parameters for this reduction were copied from recipes/defaultConfig.cfg to ./config.cfg.")
 
@@ -142,10 +142,10 @@ class GetConfig(object):
         if self.dataSource != 'GSA':
             try:
                 self.checkConfigExists(self.configFile)
-                with open('./' + self.configFile, 'r') as self.config_file:
+                with open(self.configFile, 'r') as self.config_file:
                     self.config = ConfigObj(self.config_file, unrepr=True)
                     self.config['sortConfig']['dataSource'] = self.dataSource
-                with open('./' + self.configFile, 'w') as self.outfile:
+                with open(self.configFile, 'w') as self.outfile:
                     self.config.write(self.outfile)
                 logging.debug("Set dataSource option in config file.")
             except:
