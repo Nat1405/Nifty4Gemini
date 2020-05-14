@@ -1207,8 +1207,8 @@ def downloadQueryCadc(program, directory='./rawData'):
     for url, pid in zip(urls, pids):
         try:
             filename = getFile(url)
-            shutil.move(filename, directory+'/'+filename)
-            logging.debug("Downloaded {}".format(filename))
+            shutil.move(filename, os.path.join(directory, filename.lstrip('.temp-')))
+            logging.debug("Downloaded {}".format(filename.lstrip('.temp-')))
         except Exception as e:
             logging.error("A frame failed to download.")
             raise e
@@ -1221,12 +1221,12 @@ def getFile(url):
     r = requests.get(url, stream=True)
     # Parse out filename from header
     try:
-        filename = re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
+        filename = '.temp-' + re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
     except KeyError:
         # 'Content-Disposition' header wasn't found, so parse filename from URL
         # Typical URL looks like:
         # https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/GEM/N20140505S0114.fits?RUNID=mf731ukqsipqpdgk
-        filename = (url.split('/')[-1]).split('?')[0]
+        filename = '.temp-' + (url.split('/')[-1]).split('?')[0]
     # Write the fits file
     with open(filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=128):
