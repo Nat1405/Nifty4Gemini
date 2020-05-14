@@ -26,7 +26,7 @@
 
 # STDLIB
 
-import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests
+import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib
 import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
@@ -1231,6 +1231,19 @@ def getFile(url):
     with open(filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=128):
             f.write(chunk)
+
+    # Do MD5 Verification of the file; raise IO error if a problem happened.
+    try:
+        server_checksum = r.headers['Content-MD5']
+        with open(filename, 'rb') as f:
+            download_checksum = hashlib.md5(f.read()).hexdigest()
+        if server_checksum != download_checksum:
+            logging.error("Problem downloading {} from {}.".format(filename, url))
+            raise IOError
+
+    except KeyError:
+        # Catch case that header didn't contain a 'content-md5' header
+        logging.warning("'Content-MD5 header not found for file {}. Skipping checksum validation.")
 
     return filename
 
