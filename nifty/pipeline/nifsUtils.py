@@ -26,7 +26,7 @@
 
 # STDLIB
 
-import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib
+import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib, tempfile
 import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
@@ -1209,8 +1209,7 @@ def downloadQueryCadc(program, directory='./rawData'):
     for url, pid in zip(urls, pids):
         try:
             filename = getFile(url)
-            shutil.move(filename, filename.lstrip('.temp-'))
-            logging.debug("Downloaded {}".format(filename.lstrip('.temp-')))
+            logging.debug("Downloaded {}".format(filename))
         except Exception as e:
             logging.error("A frame failed to download.")
             os.chdir(cwd)
@@ -1225,38 +1224,45 @@ def getFile(url):
     r = requests.get(url, stream=True)
     # Parse out filename from header
     try:
-        filename = '.temp-' + re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
+        filename = re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
     except KeyError:
         # 'Content-Disposition' header wasn't found, so parse filename from URL
         # Typical URL looks like:
         # https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/GEM/N20140505S0114.fits?RUNID=mf731ukqsipqpdgk
-        filename = '.temp-' + (url.split('/')[-1]).split('?')[0]
+        filename = (url.split('/')[-1]).split('?')[0]
     
-    # Write the fits file, verifying the md5 hash as we go
-    try:
-        server_checksum = r.headers['Content-MD5']
-        download_checksum = hashlib.md5()
-        with open(filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=128):
-                f.write(chunk)
-                download_checksum.update(chunk)
-        
-        if server_checksum != download_checksum.hexdigest():
-            logging.error("Problem downloading {} from {}.".format(filename, url))
-            raise IOError
-
-    except KeyError:
-        # Catch case that header didn't contain a 'content-md5' header
-        logging.warning("'Content-MD5 header not found for file {}. Skipping checksum validation.")
+    # Write the fits file to the current directory, verifying the md5 hash as we go. Store partial results in a temporary file.
+    writeWithTempFile(r, filename)
 
     return filename
 
 
+def writeWithTempFile(request, filename):
+    """ Write the fits file, verifying the md5 hash as we go. Store partial results in a temporary file. """
+    temp_downloads_path = '.temp-downloads'
+    if not os.path.exists(temp_downloads_path):
+        os.mkdir(temp_downloads_path)
+    try:
+        server_checksum = request.headers['Content-MD5']
+    except KeyError:
+        # Catch case that header didn't contain a 'content-md5' header
+        logging.warning("Content-MD5 header not found for file {}. Skipping checksum validation.".format(filename))
+        server_checksum = None
 
+    # Write out content (first to a temp file) optionally doing an md5 verification.
+    download_checksum = hashlib.md5()
+    with tempfile.TemporaryFile(mode='w+b', prefix=filename, dir=temp_downloads_path) as f:
+        for chunk in request.iter_content(chunk_size=128):
+            f.write(chunk)
+            download_checksum.update(chunk)
+        if server_checksum and (server_checksum != download_checksum.hexdigest()):
+            logging.error("Problem downloading {} from {}.".format(filename, url))
+            raise IOError
+        f.seek(0)
+        with open(filename, 'w') as out_fp:
+            out_fp.write(f.read())
 
-
-
-
+    return filename
 
 
 
