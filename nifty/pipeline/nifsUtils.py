@@ -1204,14 +1204,18 @@ def downloadQueryCadc(program, directory='./rawData'):
     pids = list(result['productID'])
 
     urls = cadc.get_data_urls(result)
+    cwd = os.getcwd()
+    os.chdir(directory)
     for url, pid in zip(urls, pids):
         try:
             filename = getFile(url)
-            shutil.move(filename, os.path.join(directory, filename.lstrip('.temp-')))
+            shutil.move(filename, filename.lstrip('.temp-'))
             logging.debug("Downloaded {}".format(filename.lstrip('.temp-')))
         except Exception as e:
             logging.error("A frame failed to download.")
+            os.chdir(cwd)
             raise e
+    os.chdir(cwd)
 
 
 def getFile(url):
