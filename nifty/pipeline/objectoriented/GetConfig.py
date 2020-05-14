@@ -89,7 +89,7 @@ class GetConfig(object):
         # Ability to repeat the last data reduction
         self.parser.add_argument('-r', '--repeat', dest = 'repeat', default = False, action = 'store_true', help = 'Repeat the last data reduction, loading saved reduction parameters from runtimeData/config.cfg.')
         # Specify where downloads come from; either Gemini or CADC.
-        self.parser.add_argument('-d', '--data-source', dest = 'dataSource', default = 'GSA', action = 'store', help = 'Download raw data from the Canadian Astronomy Data Centre or the Gemini Science Archive. Valid options are "GSA" or "CADC".')
+        self.parser.add_argument('-s', '--data-source', dest = 'dataSource', default = 'GSA', action = 'store', help = 'Download raw data from the Canadian Astronomy Data Centre or the Gemini Science Archive. Valid options are "GSA" or "CADC".')
         # Ability to load a built-in configuration file (recipe)
         self.parser.add_argument('-l', '--recipe', dest = 'recipe', action = 'store', help = 'Load data reduction parameters from the a provided recipe. Default is default_input.cfg.')
         # Ability to load your own configuration file
