@@ -1231,17 +1231,17 @@ def getFile(url):
         # Typical URL looks like:
         # https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/GEM/N20140505S0114.fits?RUNID=mf731ukqsipqpdgk
         filename = '.temp-' + (url.split('/')[-1]).split('?')[0]
-    # Write the fits file
-    with open(filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=128):
-            f.write(chunk)
-
-    # Do MD5 Verification of the file; raise IO error if a problem happened.
+    
+    # Write the fits file, verifying the md5 hash as we go
     try:
         server_checksum = r.headers['Content-MD5']
-        with open(filename, 'rb') as f:
-            download_checksum = hashlib.md5(f.read()).hexdigest()
-        if server_checksum != download_checksum:
+        download_checksum = hashlib.md5()
+        with open(filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=128):
+                f.write(chunk)
+                download_checksum.update(chunk)
+        
+        if server_checksum != download_checksum.hexdigest():
             logging.error("Problem downloading {} from {}.".format(filename, url))
             raise IOError
 
