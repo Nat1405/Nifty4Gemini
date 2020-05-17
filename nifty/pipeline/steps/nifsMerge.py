@@ -529,14 +529,15 @@ def resizeAndCenterCubes(cubelist, over):
         result = numpy.zeros(newShape)
 
         # Calculate X and Y offsets.
-        xOffset = int((maxXSize - cubeData.shape[2]) / 2.0)
-        yOffset = int((maxYSize - cubeData.shape[1]) / 2.0)
+        #xOffset = int((maxXSize - cubeData.shape[2]) / 2.0)
+        #yOffset = int((maxYSize - cubeData.shape[1]) / 2.0)
 
-        result[:, yOffset:oldShape[1]+yOffset, xOffset:oldShape[2]+xOffset] = cubeData
+        #result[:, yOffset:oldShape[1]+yOffset, xOffset:oldShape[2]+xOffset] = cubeData
+        result = cubeData
 
         oldCube[1].data = result
-        oldCube[1].header['CRPIX1'] = cPix1Max
-        oldCube[1].header['CRPIX2'] = cPix2Max
+        #oldCube[1].header['CRPIX1'] = cPix1Max
+        #oldCube[1].header['CRPIX2'] = cPix2Max
 
         if os.path.exists("temp.fits"):
             os.remove("temp.fits")
@@ -549,8 +550,11 @@ def makeWavelengthOffsets(cubelist, grat):
     """
     Get wavelength shift of cubes.
     """
+    pixScale = 0.05
     cubeheader0 = astropy.io.fits.open(cubelist[0])
     wstart0 = cubeheader0[1].header['CRVAL3']
+    p0 = cubeheader0[0].header['POFFSET']
+    q0 = cubeheader0[0].header['QOFFSET']
     # If a user provided a waveoffsetsGRATING.txt, skip the creation of it.
     if os.path.exists('waveoffsets{0}.txt'.format(grat[0])):
         logging.info("\nwaveoffsets file exists; skipping creation of it.")
@@ -561,10 +565,23 @@ def makeWavelengthOffsets(cubelist, grat):
         if i == 0:
             continue
         cubeheader = astropy.io.fits.open(cubelist[i])
+        # Check to see if we are using ALTAIR. If we are, later we will invert the x offset
+        # because of the different light path.
+        ALTAIR = cubeheader[0].header['AOFOLD'].strip() == 'IN'
+        # find the p and q offsets of the other cubes in the sequence.
+        xoff = cubeheader[0].header['POFFSET']
+        yoff = cubeheader[0].header['QOFFSET']
+        # calculate the difference between the zero point offsets and the offsets of the other cubes and convert that to pixels
+        if ALTAIR:
+            xShift = round(-1*(xoff - p0)/pixScale)
+        else:
+            xShift = round((xoff - p0)/pixScale)
+        yShift = round((yoff - q0)/pixScale)
+
         wstart = cubeheader[1].header['CRVAL3']
         wdelt = cubeheader[1].header['CD3_3']
         waveoff = round((wstart-wstart0)/wdelt)
-        fwave.write('%d %d %d\n' % (0, 0, waveoff))
+        fwave.write('%d %d %d\n' % (xShift, yShift, waveoff))
     fwave.close()
 
 #---------------------------------------------------------------------------------------------------------------------------------------#
