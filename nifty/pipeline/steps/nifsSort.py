@@ -1295,7 +1295,8 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
 
 def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
 
-    """Matches science images with the telluric frames that are closest in time.
+    """Matches science images with the telluric frames that are closest in time. 
+    Assumes the science frames and telluric frames were observed on the same UT day.
     Creates a file in each telluric observation directory called scienceMatchedTellsList.
     scienceMatchedTellsList lists the obsid of the science images (ie. obs123) and then the
     science images with this obsid that match the telluric observation.
@@ -1309,107 +1310,40 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
     """
 
     logging.info("\nI am matching science images with tellurics closest in time.\n")
+    # For each science frame, find the telluric observation that is closest in time to it.
 
-    # Store current working directory for later use.
-    path = os.getcwd()
+    # First, do it for each date/grating pair.
 
-    # Get a list of unique dates of telluric observations.
-    dateList=[]
-    for i in range(len(telDirList)):
-        date = telDirList[i].split(os.sep)[-4]
-        if i==0 or dateList[-1]!=date:
-            dateList.append(date)
+    # Get list of unique target, date, grating triples
+    target_date_grates = getTargetDateGrates(obsDirList)
 
-    # Make a 2D list; list of lists of telluric directory path, files in that directory, grating of those tellurics.
-    # [['telluric_directory/', ['telluric1.fits, telluric2.fits, ...'], 'telluric_grating']]
-    for date in dateList:
-        tellist = []
-        for telDir in telDirList:
-            if date in telDir:
+    basePath = os.path.sep.join(os.path.normpath(obsDirList[0]).split(os.path.sep)[:-4])
+    for target, date, grating in target_date_grates:
+        targetDateGratePath = os.path.join(basePath, target, date, grating)
+        # Get a list of paths to the science frames by opening the scienceFrameLists
+        science_frame_paths = getScienceFrames(targetDateGratePath, full_path=True)
+        
+        # and get a list of paths to the telluric frames by opening up the tellists
+        telluric_frame_paths = getTelluricFrames(targetDateGratePath, full_path=True, listToOpen='tellist')
 
-                os.chdir(telDir)
-                telImageList = open(telDir + '/' + 'tellist', "r").readlines()
-                telImageList = [image.strip() for image in telImageList]
-                telluric_image = telImageList[0]
-                telluric_header = astropy.io.fits.open(telDir +'/'+ telluric_image + '.fits')
-                telluric_grating = telluric_header[0].header['GRATING'][0:1]
+        # Remove old scienceMatchedTellsLists if they exist
+        removeOldScienceMatchedTellsList(telluric_frame_paths)
 
-                timeList=[]
-                if os.path.exists('./scienceMatchedTellsList'):
-                    os.remove('./scienceMatchedTellsList')
-                templist = []
-                imageList=glob.glob('N*.fits')
-                templist.append(telDir)
-                templist.append(imageList)
-                templist.append(telluric_grating)
-                tellist.append(templist)
+        # For each science frame, find the telluric frame it is closest in time to.
+        # Append that frame name and observation to that directories scienceMatchedTellsList.
 
-        # Create a list of the start and stop times for each observation called timeList.
-        # timeList is of the form [[obsid1, start1, stop1], [obsid2, start2, stop2],...]
-        for a in range(len(tellist)):
-            templist=[]
-            os.chdir(tellist[a][0])
-            telheader = astropy.io.fits.open(tellist[a][1][0])
-            start=timeCalc(tellist[a][1][0])
-            stop=timeCalc(tellist[a][1][-1])
-            templist.append(os.getcwd())
-            templist.append(start)
-            templist.append(stop)
-            templist.append(tellist[a][2])
-            timeList.append(templist)
+        for science_frame in science_frame_paths:
 
-        # Find a science image with the same date and grating.
-        for obsDir in obsDirList:
-            os.chdir(obsDir)
-            if date in obsDir:
-                try:
-                    sciImageList = open('scienceFrameList', "r").readlines()
-                except IOError:
-                    sciImageList = open('skyFrameList', "r").readlines()
-                sciImageList = [image.strip() for image in sciImageList]
+            telluric_frame = matchScienceTelluric(science_frame, telluric_frame_paths)
 
-                # Open image and get science image grating from header.
+            try:
+                assert abs(timeCalc(telluric_frame) - timeCalc(science_frame)) < telluricTimeThreshold
+            except AssertionError as e:
+                logging.error("The closest telluric frame in time ({}) for science frame {} has a calculated time delta of {} seconds. This is over the allowed telluric time threshold of {} seconds specified in the config file. Terminating.".format(science_frame, telluric_frame, abs(timeCalc(telluric_frame) - timeCalc(science_frame)), telluricTimeThreshold))
+                raise e
 
-                science_image = sciImageList[0]
-                science_header = astropy.io.fits.open('./'+ science_image + '.fits')
-                science_grating = science_header[0].header['GRATING'][0:1]
+            appendToscienceMatchedTellsList(science_frame, telluric_frame)
 
-                for image in sciImageList:
-                    diffList=[]
-                    imageTime = timeCalc(image+'.fits')
-                    for b in range(len(timeList)):
-                        # Check to make sure telluric grating and science grating match.
-                        if timeList[b][3] == science_grating:
-                            if abs(imageTime-timeList[b][1]) <= int(telluricTimeThreshold) or abs(imageTime-timeList[b][2]) <= int(telluricTimeThreshold):
-                                if abs(imageTime-timeList[b][1]) < abs(imageTime-timeList[b][2]):
-                                    diff = abs(imageTime-timeList[b][1])
-                                else:
-                                    diff = abs(imageTime-timeList[b][2])
-                                diffList.append(timeList[b][0])
-                                diffList.append(diff)
-
-                    # Find and record the science observation that is closest in time to the telluric image.
-                    # Store the science observation name in a textfile, scienceMatchedTellsList, for later use by the pipeline.
-                    if diffList:
-                        minDiff = min(diffList)
-                        telobs = diffList[diffList.index(minDiff)-1]
-                        sciheader = astropy.io.fits.open(image+'.fits')
-                        sciObsid = 'obs'+ sciheader[0].header['OBSID'][-3:].replace('-','')
-                        if not os.path.exists(telobs+'/scienceMatchedTellsList'):
-                            with open(telobs+"/scienceMatchedTellsList", "w") as f:
-                                f.write(sciObsid+'\n')
-                            #writeList(sciObsid, 'scienceMatchedTellsList', telobs)
-                        else:
-                            scienceMatchedTellsList = open(telobs+'/scienceMatchedTellsList', 'r').readlines()
-                            scienceMatchedTellsList = [item.strip() for item in scienceMatchedTellsList]
-                            if sciObsid not in scienceMatchedTellsList:
-                                with open(telobs+'.scienceMatchedTellsList', 'a') as f:
-                                    f.write(sciObsid+'\n')
-                                #writeList(sciObsid, 'scienceMatchedTellsList', telobs)
-                        #writeList(image, 'scienceMatchedTellsList', telobs)
-                        with open(telobs+'/scienceMatchedTellsList', 'a') as f:
-                            f.write(image.rstrip('.fits')+'\n')
-    os.chdir(path)
 
     # ---------------------------- Tests ------------------------------------- #
 
@@ -1418,133 +1352,142 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
     if tests:
         # Check that each science observation has valid telluric data.
 
-        # For each science observation:
-        for science_directory in obsDirList:
-            os.chdir(science_directory)
-            # Store science observation name in science_observation_name
-            science_observation_name = science_directory.split(os.sep)[-1]
-            # Optional: store time of a science frame in science_time.
-            try:
-                sciImageList = open('scienceFrameList', "r").readlines()
-            except IOError:
-                logging.info("\n#####################################################################")
-                logging.info("#####################################################################")
-                logging.info("")
-                logging.info("     WARNING in sort: science "+str(science_observation_name))
-                logging.info("                      in " + str(os.getcwd()))
-                logging.info("                      does not have a scienceFrameList.")
-                logging.info("                      I am trying to rewrite it with zero point offsets.")
-                logging.info("")
-                logging.info("#####################################################################")
-                logging.info("#####################################################################\n")
+        # Make list of science frames for a given grating and data
+        
+        # Get list of unique target, date, grating triples
+        target_date_grates = getTargetDateGrates(obsDirList)
 
-                rewriteSciImageList(2.0, "Science")
-                try:
-                    sciImageList = open('scienceFrameList', "r").readlines()
-                    logging.info("\nSucceeded; a science frame list exists in " + str(os.getcwd()))
-                except IOError:
-                    logging.info("\nWARNING: no science frames found in " + str(os.getcwd()) + ". You may have to adjust the skyThreshold parameter.")
-                    raise SystemExit
+        # Now loop over each target, date, grating triple.
+        # Each target, date, grating triple needs all science frames to be matched with a telluric in some scienceMatchedTellsList.
+        basePath = os.path.sep.join(os.path.normpath(obsDirList[0]).split(os.path.sep)[:-4])
+        for target, date, grating in target_date_grates:
+            targetDateGratePath = os.path.join(basePath, target, date, grating)
+            # Now get all science frames by opening up the scienceFrameLists
+            science_frames = getScienceFrames(targetDateGratePath)
+            
+            # and get all telluric frames by opening up the scienceMatchedTellsLists
+            tellurics_frames = getTelluricFrames(targetDateGratePath)
 
-            sciImageList = [image.strip() for image in sciImageList]
-            for science_image in sciImageList:
-                scienceDirectory = os.getcwd()
-                # Open image and get science image grating from header.
-                science_header = astropy.io.fits.open('./'+ science_image + '.fits')
-                science_time = timeCalc(science_image+'.fits')
-                science_date = science_header[0].header[ 'DATE'].replace('-','')
+            # Now ensure the two lists are equal
+            science_frames.sort()
+            tellurics_frames.sort()
+            if len(science_frames) != len(tellurics_frames):
+                logging.error("A telluric correction was requested but not enough tellurics were found in {}. Terminating.".format(targetDateGratePath))
+                raise ValueError
+            for science, telluric in zip(science_frames, tellurics_frames):
+                if science != telluric:
+                    logging.error("Science frame and scienceMatchedTellsLists differ for {}. Terminating.".format(targetDateGratePath))
 
-                # Check that directory obsname matches header obsname.
-                temp_obs_name = 'obs' + science_header[0].header['OBSID'][-3:].replace('-','')
-                if science_observation_name != temp_obs_name:
-                    logging.info("\n#####################################################################")
-                    logging.info("#####################################################################")
-                    logging.info("")
-                    logging.info("     WARNING in sort: science "+str(science_observation_name)+ " :")
-                    logging.info("                      observation name data in headers and directory")
-                    logging.info("                      do not match.")
-                    logging.info("")
-                    logging.info("#####################################################################")
-                    logging.info("#####################################################################\n")
-
-                # Check that a tellurics directory exists.
-                if os.path.exists('../Tellurics/'):
-                    os.chdir('../Tellurics/')
-                else:
-                    logging.info("\n#####################################################################")
-                    logging.info("#####################################################################")
-                    logging.info("")
-                    logging.info("     WARNING in sort: telluric directory for science "+str(science_observation_name))
-                    logging.info("                      does not exist.")
-                    logging.info("")
-                    logging.info("#####################################################################")
-                    logging.info("#####################################################################\n")
-                    continue
-                found_telluric_flag = False
-
-                # Iterate through tellurics observation directories.
-                for directory in list(glob.glob('obs*')):
-                    os.chdir('./'+directory)
-                    # Check that a file, scienceMatchedTellsList exists.
-                    try:
-                        scienceMatchedTellsList = open('scienceMatchedTellsList', "r").readlines()
-                        # Check that the science observation name is in the file.
-                        # Check that immediately after is at least one telluric image name.
-                        # Do this by checking for the science date in the telluric name.
-                        for i in range(len(scienceMatchedTellsList)):
-                            telluric_observation_name = scienceMatchedTellsList[i].strip()
-                            if telluric_observation_name == science_observation_name:
-                                rest_list = [x.strip() for x in scienceMatchedTellsList]
-                                if science_image in rest_list:
-                                    found_telluric_flag = True
-                                    break
-                    except IOError:
-                        pass
-
-                    if found_telluric_flag:
-                        os.chdir('../')
-                        break
-                    else:
-                        os.chdir('../')
-
-                if not found_telluric_flag:
-                    os.chdir('../')
-                    logging.info("\n#####################################################################")
-                    logging.info("#####################################################################")
-                    logging.info("")
-                    logging.info("     WARNING in sort: no tellurics data found for science "+str(science_image))
-                    logging.info("     in " + str(os.getcwd()))
-                    logging.info("")
-                    logging.info("#####################################################################")
-                    logging.info("#####################################################################\n")
-                    logging.info("\n#####################################################################")
-                    logging.info("#####################################################################")
-                    logging.info("")
-                    logging.info("    TURNING OFF TELLURIC-RELATED STEPS IN CONFIG FILE.")
-                    logging.info("")
-                    logging.info("#####################################################################")
-                    logging.info("#####################################################################\n")
-                    # Turn off the telluric correction.
-                    logging.info("\nnifsSort: no tellurics data found for a directory. Turning off telluric reduction, telluric correction and flux calibration in ./config.cfg.")
-                    with open('../../../config.cfg') as config_file:
-                        options = ConfigObj(config_file, unrepr=True)
-                        nifsPipelineConfig = options['nifsPipelineConfig']
-                    nifsPipelineConfig['telluricReduction'] = False
-                    nifsPipelineConfig['telluricCorrection'] = False
-                    nifsPipelineConfig['fluxCalibration'] = False
-                    with open('../../../config.cfg', 'w') as config_file:
-                        options.write(config_file)
-
-                os.chdir(scienceDirectory)
-                # TODO(nat):
-                # Optional: open that telluric image and store time in telluric_time
-                # Check that abs(telluric_time - science_time) < 1.5 hours
 
     # ---------------------------- End Tests --------------------------------- #
 
-    os.chdir(path)
     logging.info("\nI am finished matching science images with telluric frames.")
     return
+
+def getTargetDateGrates(obsDirs):
+    target_date_grates = []
+    for science_directory in obsDirs:
+        target = science_directory.split(os.sep)[-4]
+        date = science_directory.split(os.sep)[-3]
+        grating = science_directory.split(os.sep)[-2]
+        if (target, date, grating) not in target_date_grates:
+            target_date_grates.append((target, date, grating))
+    return target_date_grates
+
+
+def getScienceFrames(path, full_path=False):
+    science_frames = []
+    for science_obs_dir in glob.glob(os.path.join(path, "obs*")):
+        try:
+            with open(os.path.join(path, science_obs_dir, 'scienceFrameList'), 'r') as f:
+                for frame in f.readlines():
+                    if frame not in science_frames:
+                        if full_path:
+                            science_frames.append(os.path.join(path, science_obs_dir, frame.rstrip('\n')+'.fits'))
+                        else:
+                            science_frames.append(frame)
+        except IOError as e:
+            logging.error("Science directory {} didn't have a scienceFrameList! Terminating sort.".format(os.path.join(path, science_obs_dir)))
+            raise e
+    try:
+        assert len(science_frames) != 0
+    except AssertionError as e:
+        logging.error("No science frames were found for a given grating and date ({}). This is most likely an error.".format(path))
+        raise e
+
+    return science_frames
+
+def getTelluricFrames(path, full_path=False, listToOpen='scienceMatchedTellsList'):
+    tellurics_frames = []
+    for telluric_obs_dir in glob.glob(os.path.join(path, "Tellurics", "obs*")):
+        try:
+            with open(os.path.join(path, telluric_obs_dir, listToOpen), 'r') as f:
+                for frame in list(filter(lambda x: 'obs' not in x, f.readlines())): # Strips out "obs_n" entries
+                    if frame not in tellurics_frames:
+                        if full_path:
+                            tellurics_frames.append(os.path.join(path, telluric_obs_dir, frame.rstrip('\n')+'.fits'))
+                        else:
+                            tellurics_frames.append(frame)
+        except IOError as e:
+            # Not usually a problem if a scienceMatchedTellsList isn't there.
+            pass
+    return tellurics_frames
+
+def matchScienceTelluric(science_frame_path, telluric_frame_paths):
+    # Calculate time of the science frame
+    science_time = timeCalc(science_frame_path)
+
+    telluric_time_deltas = [abs(timeCalc(x) - science_time) for x in telluric_frame_paths]
+
+    try:
+        assert len(telluric_time_deltas) == len(telluric_frame_paths)
+    except AssertionError as e:
+        logging.error("timeCalc seems to have failed on a frame. One example is {}. Terminating.".format(telluric_frame_paths[0]))
+
+    # Find closest telluric frame in time.
+
+    return sorted(zip(telluric_time_deltas, telluric_frame_paths))[0][1]
+
+def appendToscienceMatchedTellsList(science_frame_path, telluric_frame_path):
+    # Get telluric observation directory where we should find the scienceMatchedTellsList
+    tell_obs_directory = os.path.sep.join(os.path.normpath(telluric_frame_path).split(os.path.sep)[:-1])
+    science_frame = os.path.normpath(science_frame_path).split(os.path.sep)[-1].rstrip('.fits')
+    science_obs = os.path.normpath(science_frame_path).split(os.path.sep)[-2]
+    # Append the science frame name and observation to the scienceMatchedTellsList
+    try:
+        with open(os.path.join(tell_obs_directory, 'scienceMatchedTellsList'), 'a+') as f:
+            f.seek(0)
+            lines = [x.rstrip('\n') for x in f.readlines()]
+    except IOError as e:
+        logging.error("Failed to open a scienceMatchedTellsList in {}. Terminating.".format(tell_obs_directory))
+        raise e
+        
+    if science_frame in lines:
+        logging.error("A duplicate entry tried to be inserted into a scienceMatchedTellsList in {}. Terminating.".format(tell_obs_directory))
+        raise AssertionError
+
+    if science_obs in lines: # Insert somewhere after the occurence of obs in the list
+        lines.insert(lines.index(science_obs)+1, science_frame)
+    else:
+        lines.append(science_obs)
+        lines.append(science_frame)
+
+    try:
+        with open(os.path.join(tell_obs_directory, 'scienceMatchedTellsList'), 'w') as f:
+            for line in lines:
+                f.write(line+'\n')
+    except IOError as e:
+        logging.error("Failed to append to a scienceMatchedTellsList in {}. Terminating.".format(tell_obs_directory))
+        raise e
+
+def removeOldScienceMatchedTellsList(telluric_frame_paths):
+    # Get a list of telluric observatory directories from the paths
+    tell_obs_dirs = [os.path.sep.join(os.path.normpath(x).split(os.path.sep)[:-1]) for x in telluric_frame_paths]
+
+    for tell_obs_dir in tell_obs_dirs:
+        if (os.path.exists(os.path.join(tell_obs_dir, 'scienceMatchedTellsList'))):
+            os.remove(os.path.join(tell_obs_dir, 'scienceMatchedTellsList'))
+
 
 
 #--------------------------- End of Functions ---------------------------------#
