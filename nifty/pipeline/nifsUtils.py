@@ -1017,7 +1017,7 @@ def checkSameLengthFlatLists():
                 del flatlist[-1]
             else:
                 del flatdarklist[-1]
-            if len(flatlist == 0) or len(flatdarklist == 0):
+            if len(flatlist) == 0 or len(flatdarklist) == 0:
                 logging.error("Error trying to make a flatlist and a flatdarklist the same length in {}. Terminating.".format(os.getcwd()))
                 raise IOError
         # Write the new flatlist to the flatlist textfile, overwriting anything already there.

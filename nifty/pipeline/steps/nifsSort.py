@@ -186,7 +186,7 @@ def start():
         objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageList, rawPath)
         if manualMode:
             a = raw_input("About to enter sortCalibrations().")
-        calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode)
+        calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource)
         # If a telluric reduction will be performed sort the science and telluric images based on time between observations.
         # This will NOT be executed if -t False is specified at command line.
         if sortTellurics:
@@ -340,22 +340,22 @@ def makePythonLists(rawPath, skyThreshold):
                     skyFrameList.append(entry)
 
             # Create a list of telluric sky frames.
-            if obsclass == 'partnerCal':
+            elif obsclass == 'partnerCal':
                 if rad >= skyThreshold:
                     telskyFrameList.append(entry)
 
             # Create sciDateList: list of unique dates of science observations.
-            if obsclass == 'science':
+            elif obsclass == 'science':
                 # Append if list is empty or not a duplicate of last entry.
                 if not sciDateList or not sciDateList[-1]==date:
                     sciDateList.append(date)
 
         # Add arc frame names to arclist.
-        if obstype == 'ARC':
+        elif isArc(obstype):
             arclist.append(entry)
 
         # Add arc dark frame names to arcdarklist.
-        if obstype == 'DARK':
+        elif isArcDark(obstype):
             arcdarklist.append(entry)
 
         # Add lamps on flat frames to flatlist,
@@ -364,36 +364,14 @@ def makePythonLists(rawPath, skyThreshold):
         # Lamps on and lamps off flats, and lamps on and lamps off ronchis are
         # seperated by mean number of counts per pixel. Arbitrary threshold is
         # if mean_counts < 500, it is a lamps off flat or ronchi.
-        if obstype == 'FLAT':
+        elif isRonchiFlat(obstype, aper, entry):
+            ronchilist.append(entry)
 
-            if aper == 'Ronchi_Screen_G5615':
-                # Only use lamps on ronchi flat frames.
-                # Open the image and store pixel values in an array and
-                # take the mean of all pixel values.
-                array = astropy.io.fits.getdata(entry)
-                mean_counts = np.mean(array)
+        elif isFlat(obstype, aper, entry):
+            flatlist.append(entry)
 
-                # Once the mean is stored in mean_counts we can check whether the
-                # frame is a lamps off ronchi or a lamps on ronchi based on the counts.
-                # 500.0 is an arbitrary threshold that appears to work well.
-                if mean_counts < 500.0:
-                    pass
-                else:
-                    ronchilist.append(entry)
-
-            else:
-                # Open the image and store pixel values in an array and
-                # take the mean of all pixel values.
-                array = astropy.io.fits.getdata(entry)
-                mean_counts = np.mean(array)
-
-                # Once the mean is stored in mean_counts we can check whether the
-                # frame is a sky or an object based on the counts. 500.0 is an
-                # arbitrary threshold that appears to work well.
-                if mean_counts < 500.0:
-                    flatdarklist.append(entry)
-                else:
-                    flatlist.append(entry)
+        elif isFlatDark(obstype, aper, entry):
+            flatdarklist.append(entry)
 
     # Based on science (including sky) frames, make a list of unique [object, date] list pairs to be used later.
     for i in range(len(rawfiles)):
@@ -754,7 +732,7 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
 
 #----------------------------------------------------------------------------------------#
 
-def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode):
+def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource):
 
     """Sort calibrations into appropriate directories based on date.
     """
@@ -1036,18 +1014,73 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
             logging.info("")
             logging.info("#####################################################################")
             logging.info("#####################################################################\n")
-            logging.error("Terminating due to no calibrations being found in {}.".format())
+            logging.error("Terminating due to no calibrations being found in {}.".format(os.path.join(path1, obj, date, grat, 'obs'+obsid)))
             raise e
 
-        checkListExists(sciImageList[i], flatlist, 'flatlist', 'lamps on flat', rawPath)
-        checkListExists(sciImageList[i], flatdarklist, 'flatdarklist', 'lamps off flat', rawPath)
+        try:
+            checkListExists(sciImageList[i], flatlist, 'flatlist', 'lamps on flat', rawPath)
+        except RuntimeError as e_list:
+            try:
+                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'flatlist', 'FLAT', dataSource)
+            except RuntimeError as e_download:
+                raise CalibrationsNotFoundError(
+                    [
+                        e_list,
+                        e_download
+                    ]
+                )
+        try:
+            checkListExists(sciImageList[i], flatdarklist, 'flatdarklist', 'lamps off flat', rawPath)
+        except RuntimeError as e_list:
+            try:
+                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'flatdarklist', 'DARK', dataSource)
+            except RuntimeError as e_download:
+                raise CalibrationsNotFoundError(
+                    [
+                        e_list,
+                        e_download
+                    ]
+                )
         # Make sure flatlist and flatdarklist are the same length. nsflat() complains otherwise.
         checkSameLengthFlatLists()
 
-        checkListExists(sciImageList[i], arclist, 'arclist', 'arc', rawPath)
-        checkListExists(sciImageList[i], arcdarklist, 'arcdarklist', 'arc dark', rawPath)
-        checkListExists(sciImageList[i], ronchilist, 'ronchilist', 'ronchi flat', rawPath)
-        
+        try:
+            checkListExists(sciImageList[i], arclist, 'arclist', 'arc', rawPath)
+        except RuntimeError as e_list:
+            try:
+                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'arclist', 'ARC', dataSource)
+            except RuntimeError as e_download:
+                raise CalibrationsNotFoundError(
+                    [
+                        e_list,
+                        e_download
+                    ]
+                )
+        try:
+            checkListExists(sciImageList[i], arcdarklist, 'arcdarklist', 'arc dark', rawPath)
+        except RuntimeError as e_list:
+            try:
+                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'arcdarklist', 'DARK', dataSource)
+            except RuntimeError as e_download:
+                raise CalibrationsNotFoundError(
+                    [
+                        e_list,
+                        e_download
+                    ]
+                )
+        try:
+            checkListExists(sciImageList[i], ronchilist, 'ronchilist', 'ronchi flat', rawPath)
+        except RuntimeError as e_list:
+            try:
+                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'ronchilist', 'RONCHI', dataSource)
+            except RuntimeError as e_download:
+                raise CalibrationsNotFoundError(
+                    [
+                        e_list,
+                        e_download
+                    ]
+                )
+
         os.chdir(path1)
 
     # Change back to original working directory.
@@ -1255,7 +1288,7 @@ def removeOldScienceMatchedTellsList(telluric_frame_paths):
             os.remove(os.path.join(tell_obs_dir, 'scienceMatchedTellsList'))
 
 
-def checkListExists(science_frame, in_list, list_name, list_description, rawPath, check_exp_time=False):
+def checkListExists(science_frame, in_list, list_name, list_description, rawPath):
     # $list_name exists and has more than one file.
     try:
         listFile = open(list_name, "r").readlines()
@@ -1280,11 +1313,8 @@ def checkListExists(science_frame, in_list, list_name, list_description, rawPath
 
         # Sometimes calibration frames can be taken a day after the observing night. First
         # look for these, and if they are not found, ask the user to provide some calibration frames.
-        foundFlag = False
         # Get date before and after the science observation
-        t=time.strptime(date,'%Y%m%d')
-        newdate_after=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
-        newdate_before=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)-datetime.timedelta(1)
+        newdate_before, newdate_after = getPlusMinusDays(os.path.join(rawPath, science_frame), 1)
         # Loop through in_list and see if there is a frame taken on this date, optionally checking that exposure times match
         for i in range(len(in_list)):
             header = astropy.io.fits.open(rawPath+'/'+in_list[i][0])
@@ -1293,7 +1323,7 @@ def checkListExists(science_frame, in_list, list_name, list_description, rawPath
             if (str(date) == newdate_after.strftime('%Y%m%d')) or (str(date) == newdate_before.strftime('%Y%m%d')):
                 # If so, copy it to the appropriate calibrations directory and write in the text list.
                 shutil.copy(rawPath + '/' + in_list[i][0], './')
-                writeList(in_list[i][0], list_name, path)
+                writeList(in_list[i][0], list_name, os.getcwd())
                 logging.info("\n#####################################################################")
                 logging.info("#####################################################################")
                 logging.info("")
@@ -1303,11 +1333,160 @@ def checkListExists(science_frame, in_list, list_name, list_description, rawPath
                 logging.info("")
                 logging.info("#####################################################################")
                 logging.info("#####################################################################\n")
-                foundFlag = True
+                break
                 in_list[i][1] = 0
-        if not foundFlag:
-            # If that quick check fails, give user a chance to try and provide a $list_name file.
-            a = raw_input("\n Please provide a textfile called {} in ".format(list_name) + str(os.getcwd()))
+        else:
+            raise RuntimeError("Error: no {} found in {}; some {} frames are missing. Please provide the calibration frames in the rawData directory and restart the reduction.".format(list_name, os.getcwd(), list_description))
+
+
+def tryDownloadPlusMinusOneDay(rawPath, science_frame, list_name, data_type, dataSource):
+    # Query data source for calibrations plus or minus one day of a given science frame.
+    if dataSource == 'CADC':
+        day_before, day_after = getPlusMinusDays(os.path.join(rawPath, science_frame), 1)
+        import pdb; pdb.set_trace()
+        newdate_before_mjd = astropy.time.Time(day_before).mjd
+        # CADC is exclusive of upper bound so need to add a day.
+        newdate_after_mjd = astropy.time.Time(day_after+datetime.timedelta(1)).mjd
+
+        query = "SELECT observationID, publisherID, productID FROM caom2.Observation " + \
+                         "AS o JOIN caom2.Plane AS p ON o.obsID=p.obsID " + \
+                         "WHERE  ( type = '{}' AND instrument_name = 'NIFS' ".format(data_type) + \
+                         "AND collection = 'GEMINI' " + \
+                         "AND INTERSECTS( INTERVAL( {}, {} ), ".format(newdate_before_mjd, newdate_after_mjd) + \
+                         "p.time_bounds ) = 1 )"
+        try:
+            downloadQueryCadc(query, directory=os.getcwd())
+        except Exception as e:
+            logging.warning("A problem occured while trying to download calibrations one day before/after science frame {} in {}.".format(science_frame, os.getcwd()))
+            raise e
+    else:
+        logging.error("Querying for calibrations plus/minus one day is unsupported with the dataSource={} option. Current support is for the 'CADC' option.".format(dataSource))
+        raise ValueError
+
+    # Now see if the downloaded files can be used to augment the list that's missing the files.
+    # rewriteCalibrationList() returns num calibrations found
+    if not rewriteCalibrationList(list_name):
+        logging.error("No new calibrations were found for science frame {} in {} by downloading calibrations one day ahead and behind.".format(science_frame, os.getcwd()))
+        raise RuntimeError
+
+
+def getPlusMinusDays(science_frame, num_days):
+    """
+    science_frame: absolute path to science frame.
+    num_days: number of UT days in radius to search.
+    """
+    sci_header = astropy.io.fits.open(science_frame)
+    sci_date = sci_header[0].header['DATE'].replace('-','')
+    t = time.strptime(sci_date,'%Y%m%d')
+    newdate_after=datetime.datetime(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(num_days)
+    newdate_before=datetime.datetime(t.tm_year,t.tm_mon,t.tm_mday)-datetime.timedelta(num_days)
+    return (newdate_before, newdate_after)
+
+
+def rewriteCalibrationList(list_name):
+    # rewrites a calibration list based on the files in the current working directory, counting number of files written.
+    count = 0
+    frames = glob.glob("N2*")
+    if list_name == 'flatlist':
+        with open('flatlist', 'w') as f:
+            for frame in frames:
+                headers = HeaderInfo(frame)
+                if isFlat(headers.obstype, headers.aper, frame):
+                    writeList(frame, 'flatlist', os.getcwd())
+                    count += 1
+    elif list_name == 'arclist':
+        with open('arclist', 'w') as f:
+            for frame in frames:
+                headers = HeaderInfo(frame)
+                if isArc(headers.obstype):
+                    writeList(frame, 'arclist', os.getcwd())
+                    count += 1
+    elif list_name == 'arcdarklist':
+        with open('arcdarklist', 'w') as f:
+            for frame in frames:
+                headers = HeaderInfo(frame)
+                if isArcDark(headers.obstype):
+                    writeList(frame, 'arcdarklist', os.getcwd())
+                    count += 1
+    elif list_name == 'flatdarklist':
+        with open('flatdarklist', 'w') as f:
+            for frame in frames:
+                headers = HeaderInfo(frame)
+                if isFlatDark(headers.obstype, headers.aper, frame):
+                    writeList(frame, 'flatdarklist', os.getcwd())
+                    count += 1
+    elif list_name == 'ronchilist':
+        with open('ronchilist', 'w') as f:
+            for frame in frames:
+                headers = HeaderInfo(frame)
+                if isRonchiFlat(headers.obstype, headers.aper, frame):
+                    writeList(frame, 'ronchilist', os.getcwd())
+                    count += 1
+    else:
+        logging.error("Invalid list name.")
+        raise ValueError
+    assert count <= len(frames)
+    return count
+
+
+def isFlat(obstype, aper, frame):
+    if (obstype == 'FLAT') and (aper != 'Ronchi_Screen_G5615'):
+        array = astropy.io.fits.getdata(frame)
+        mean_counts = np.mean(array)
+        return mean_counts > 500
+    return False
+
+def isArc(obstype):
+    return obstype == 'ARC'
+
+def isFlatDark(obstype, aper, frame):
+    if (obstype == 'FLAT') and (aper != 'Ronchi_Screen_G5615'):
+        array = astropy.io.fits.getdata(frame)
+        mean_counts = np.mean(array)
+        return mean_counts < 500
+    return False
+
+def isArcDark(obstype):
+    return obstype == 'DARK'
+
+def isRonchiFlat(obstype, aper, frame):
+    # Once the mean is stored in mean_counts we can check whether the
+    # frame is a lamps off ronchi or a lamps on ronchi based on the counts.
+    # 500.0 is an arbitrary threshold that appears to work well.
+    if (obstype == 'FLAT') and (aper == 'Ronchi_Screen_G5615'):
+        array = astropy.io.fits.getdata(frame)
+        mean_counts = np.mean(array)
+        return mean_counts > 500
+    return False
+
+
+class HeaderInfo(object):
+    def __init__(self, frame):
+        try:
+            header = astropy.io.fits.open(frame)
+
+            # Store information in variables.
+            self.instrument = header[0].header['INSTRUME']
+            if self.instrument != 'NIFS':
+                # Only grab frames belonging to NIFS raw data!
+                raise ValueError("Data isn't from NIFS!")
+            self.obstype = header[0].header['OBSTYPE'].strip()
+            self.ID = header[0].header['OBSID']
+            self.date = header[0].header[ 'DATE'].replace('-','')
+            self.obsclass = header[0].header['OBSCLASS']
+            self.aper = header[0].header['APERTURE']
+            # If object name isn't alphanumeric, make it alphanumeric.
+            self.objname = re.sub('[^a-zA-Z0-9\n\.]', '', header[0].header['OBJECT'])
+            self.poff = header[0].header['POFFSET']
+            self.qoff = header[0].header['QOFFSET']
+        except Exception as e:
+            logging.error("Error getting header info for frame {}.".format(frame))
+            raise e
+
+
+class CalibrationsNotFoundError(Exception):
+    """Raised when calibrations aren't found for a particular science frame."""
+    pass
 
 
 
