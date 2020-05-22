@@ -914,17 +914,16 @@ def writeList(image, file, path):
     os.chdir(path)
     image = image.rstrip('.fits')
     if os.path.exists(file):
-        filelist = open(file, 'r').readlines()
-        if image+'\n' in filelist or not filelist:
-            f = open(file, 'w')
-            f.write(image+'\n')
+        with open(file, 'r') as f:
+            filelist = f.readlines()
+        if image+'\n' in filelist:
+            pass
         else:
-            f = open(file, 'a')
-            f.write(image+'\n')
+            with open(file, 'a') as f:
+                f.write(image+'\n')
     else:
-        f = open(file, 'a')
-        f.write(image+'\n')
-    f.close()
+        with open(file, 'a') as f:
+            f.write(image+'\n')
     os.chdir(homepath)
 
 #-----------------------------------------------------------------------------#
@@ -1018,6 +1017,9 @@ def checkSameLengthFlatLists():
                 del flatlist[-1]
             else:
                 del flatdarklist[-1]
+            if len(flatlist == 0) or len(flatdarklist == 0):
+                logging.error("Error trying to make a flatlist and a flatdarklist the same length in {}. Terminating.".format(os.getcwd()))
+                raise IOError
         # Write the new flatlist to the flatlist textfile, overwriting anything already there.
         with open('./flatlist', 'w') as f:
             for item in flatlist:

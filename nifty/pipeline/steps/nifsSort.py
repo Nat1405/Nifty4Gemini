@@ -1008,7 +1008,6 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
     # ronchilist exists and has more than one file.
 
 
-    # TODO(nat): This is horrifying. Good grief, wrap these repetitive calls in a function!
     logging.info("\nChecking that each science image has required calibration data. ")
     # For each science image, read its header data and try to change to the appropriate directory.
     # Check that:
@@ -1027,7 +1026,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
         try:
             os.chdir(path1+'/'+obj+'/'+date+'/'+grat+'/obs'+obsid+'/')
             os.chdir('../../Calibrations_'+grat+'/')
-        except OSError:
+        except OSError as e:
             logging.info("\n#####################################################################")
             logging.info("#####################################################################")
             logging.info("")
@@ -1036,252 +1035,18 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
             logging.info("")
             logging.info("#####################################################################")
             logging.info("#####################################################################\n")
-            continue
+            logging.error("Terminating due to no calibrations being found in {}.".format())
+            raise e
 
-        # flatlist exists and has more than one file.
-        try:
-            flatListFile = open('flatlist', "r").readlines()
-            if len(flatListFile) <= 1:
-                logging.info("\n#####################################################################")
-                logging.info("#####################################################################")
-                logging.info("")
-                logging.info("     WARNING in sort: only 1 lamps on flat frame found for science")
-                logging.info("                      frame "+str(sciImageList[i]))
-                logging.info("")
-                logging.info("#####################################################################")
-                logging.info("#####################################################################\n")
-        except IOError:
-            logging.info("\n#####################################################################")
-            logging.info("#####################################################################")
-            logging.info("")
-            logging.info("     WARNING in sort: no flatlist found for science frame")
-            logging.info("                      "+str(sciImageList[i]))
-            logging.info("")
-            logging.info("#####################################################################")
-            logging.info("#####################################################################\n")
-
-            if not manualMode:
-                # Sometimes flats can be taken a day after the observing night. First
-                # look for these, and if they are not found, ask the user to provide some flats.
-                foundflatFlag = False
-                # Get date after the science observation
-                t=time.strptime(date,'%Y%m%d')
-                newdate=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
-                # Loop through flatlist and see if there is an flat taken on this date
-                for i in range(len(flatlist)):
-                    header = astropy.io.fits.open(rawPath+'/'+flatlist[i][0])
-                    date = header[0].header[ 'DATE'].replace('-','')
-                    if str(date) == newdate.strftime('%Y%m%d'):
-                        # If so, copy it to the appropriate calibrations directory and write an flatlist.
-                        shutil.copy(rawPath + '/' + flatlist[i][0], './')
-                        writeList(flatlist[i][0], 'flatlist', path)
-                        logging.info("\n#####################################################################")
-                        logging.info("#####################################################################")
-                        logging.info("")
-                        logging.info("     WARNING in sort: found a flat taken one day after a science frame.")
-                        logging.info("                      "+str(sciImageList[i]))
-                        logging.info("                       using that.")
-                        logging.info("")
-                        logging.info("#####################################################################")
-                        logging.info("#####################################################################\n")
-                        foundflatFlag = True
-                        flatlist[i][1] = 0
-                if not foundflatFlag:
-                    # If that quick check fails, give user a chance to try and provide an flat file.
-                    a = raw_input("\n Please provide a textfile called flatlist in " + str(os.getcwd()))
-
-
-        # flatdarklist exists and has more than one file.
-        try:
-            flatDarkListFile = open('flatdarklist', "r").readlines()
-            if len(flatDarkListFile) <= 1:
-                logging.info("\n#####################################################################")
-                logging.info("#####################################################################")
-                logging.info("")
-                logging.info("     WARNING in sort: only 1 lamps off flat frame found for science")
-                logging.info("                      frame "+str(sciImageList[i]))
-                logging.info("")
-                logging.info("#####################################################################")
-                logging.info("#####################################################################\n")
-        except IOError:
-            logging.info("\n#####################################################################")
-            logging.info("#####################################################################")
-            logging.info("")
-            logging.info("     WARNING in sort: no flatdarklist found for science frame")
-            logging.info("                      "+str(sciImageList[i]))
-            logging.info("")
-            logging.info("#####################################################################")
-            logging.info("#####################################################################\n")
-            if not manualMode:
-                # Sometimes flatdarks can be taken a day after the observing night. First
-                # look for these, and if they are not found, ask the user to provide some flatdarks.
-                foundflatdarkFlag = False
-                # Get date after the science observation
-                t=time.strptime(date,'%Y%m%d')
-                newdate=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
-                # Loop through flatdarklist and see if there is an flatdark taken on this date
-                for i in range(len(flatdarklist)):
-                    header = astropy.io.fits.open(rawPath+'/'+flatdarklist[i][0])
-                    date = header[0].header[ 'DATE'].replace('-','')
-                    if str(date) == newdate.strftime('%Y%m%d'):
-                        # If so, copy it to the appropriate calibrations directory and write an flatdarklist.
-                        shutil.copy(rawPath + '/' + flatdarklist[i][0], './')
-                        writeList(flatdarklist[i][0], 'flatdarklist', path)
-                        logging.info("\n#####################################################################")
-                        logging.info("#####################################################################")
-                        logging.info("")
-                        logging.info("     WARNING in sort: found a flatdark taken one day after a science frame.")
-                        logging.info("                      "+str(sciImageList[i]))
-                        logging.info("                       using that.")
-                        logging.info("")
-                        logging.info("#####################################################################")
-                        logging.info("#####################################################################\n")
-                        foundflatdarkFlag = True
-                        flatdarklist[i][1] = 0
-                if not foundflatdarkFlag:
-                    # If that quick check fails, give user a chance to try and provide an flatdark file.
-                    a = raw_input("\n Please provide a textfile called flatdarklist in " + str(os.getcwd()) + \
-                    " or be sure not to attempt a wavelength calibration for this directory.")
+        checkListExists(sciImageList[i], flatlist, 'flatlist', 'lamps on flat', rawPath)
+        checkListExists(sciImageList[i], flatdarklist, 'flatdarklist', 'lamps off flat', rawPath)
         # Make sure flatlist and flatdarklist are the same length. nsflat() complains otherwise.
         checkSameLengthFlatLists()
 
-        # arclist exists.
-        try:
-            arcListFile = open('arclist', "r").readlines()
-        except IOError:
-            logging.info("\n#####################################################################")
-            logging.info("#####################################################################")
-            logging.info("")
-            logging.info("     WARNING in sort: no arclist found for science frame")
-            logging.info("                      "+str(sciImageList[i]))
-            logging.info("")
-            logging.info("#####################################################################")
-            logging.info("#####################################################################\n")
-
-            if not manualMode:
-                # Sometimes arcs can be taken a day after the observing night. First
-                # look for these, and if they are not found, ask the user to provide some arcs.
-                foundArcFlag = False
-                # Get date after the science observation
-                t=time.strptime(date,'%Y%m%d')
-                newdate=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
-                # Loop through arclist and see if there is an arc taken on this date
-                for i in range(len(arclist)):
-                    header = astropy.io.fits.open(rawPath+'/'+arclist[i][0])
-                    date = header[0].header[ 'DATE'].replace('-','')
-                    if str(date) == newdate.strftime('%Y%m%d'):
-                        # If so, copy it to the appropriate calibrations directory and write an arclist.
-                        shutil.copy(rawPath + '/' + arclist[i][0], './')
-                        writeList(arclist[i][0], 'arclist', path)
-                        logging.info("\n#####################################################################")
-                        logging.info("#####################################################################")
-                        logging.info("")
-                        logging.info("     WARNING in sort: found an arc taken one day after a science frame.")
-                        logging.info("                      "+str(sciImageList[i]))
-                        logging.info("                       using that.")
-                        logging.info("")
-                        logging.info("#####################################################################")
-                        logging.info("#####################################################################\n")
-                        foundArcFlag = True
-                        arclist[i][1] = 0
-                if not foundArcFlag:
-                    # If that quick check fails, give user a chance to try and provide an arc file.
-                    a = raw_input("\n Please provide a textfile called arclist in " + str(os.getcwd()) + \
-                    " or be sure not to attempt a wavelength calibration for this directory.")
-
-        # arcdarklist exists.
-        try:
-            arcDarkListFile = open('arcdarklist', "r").readlines()
-        except IOError:
-            logging.info("\n#####################################################################")
-            logging.info("#####################################################################")
-            logging.info("")
-            logging.info("     WARNING in sort: no arcdarklist found for science frame")
-            logging.info("                      "+str(sciImageList[i]))
-            logging.info("")
-            logging.info("#####################################################################")
-            logging.info("#####################################################################\n")
-            if not manualMode:
-                # Sometimes arcdarks can be taken a day after the observing night. First
-                # look for these, and if they are not found, ask the user to provide some arcdarks.
-                foundarcdarkFlag = False
-                # Get date after the science observation
-                t=time.strptime(date,'%Y%m%d')
-                newdate=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
-                # Loop through arcdarklist and see if there is an arcdark taken on this date
-                for i in range(len(arcdarklist)):
-                    header = astropy.io.fits.open(rawPath+'/'+arcdarklist[i][0])
-                    date = header[0].header[ 'DATE'].replace('-','')
-                    if str(date) == newdate.strftime('%Y%m%d'):
-                        # If so, copy it to the appropriate calibrations directory and write an arcdarklist.
-                        shutil.copy(rawPath + '/' + arcdarklist[i][0], './')
-                        writeList(arcdarklist[i][0], 'arcdarklist', path)
-                        logging.info("\n#####################################################################")
-                        logging.info("#####################################################################")
-                        logging.info("")
-                        logging.info("     WARNING in sort: found an arcdark taken one day after a science frame.")
-                        logging.info("                      "+str(sciImageList[i]))
-                        logging.info("                       using that.")
-                        logging.info("")
-                        logging.info("#####################################################################")
-                        logging.info("#####################################################################\n")
-                        foundarcdarkFlag = True
-                        arcdarklist[i][1] = 0
-                if not foundarcdarkFlag:
-                    # If that quick check fails, give user a chance to try and provide an arcdark file.
-                    a = raw_input("\n Please provide a textfile called arcdarklist in " + str(os.getcwd()) + \
-                    " or be sure not to attempt a wavelength calibration for this directory.")
-        # ronchilist exists and has more than one file.
-        try:
-            ronchiListFile = open('ronchilist', "r").readlines()
-            if len(ronchiListFile) <= 1:
-                logging.info("\n#####################################################################")
-                logging.info("#####################################################################")
-                logging.info("")
-                logging.info("     WARNING in sort: only 1 ronchi flat frame found for science frame")
-                logging.info("                      "+str(sciImageList[i]))
-                logging.info("")
-                logging.info("#####################################################################")
-                logging.info("#####################################################################\n")
-        except IOError:
-            logging.info("\n#####################################################################")
-            logging.info("#####################################################################")
-            logging.info("")
-            logging.info("     WARNING in sort: no ronchilist found for science frame")
-            logging.info("                      "+str(sciImageList[i]))
-            logging.info("")
-            logging.info("#####################################################################")
-            logging.info("#####################################################################\n")
-            if not manualMode:
-                # Sometimes ronchis can be taken a day after the observing night. First
-                # look for these, and if they are not found, ask the user to provide some ronchis.
-                foundronchiFlag = False
-                # Get date after the science observation
-                t=time.strptime(date,'%Y%m%d')
-                newdate=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
-                # Loop through ronchilist and see if there is an ronchi taken on this date
-                for i in range(len(ronchilist)):
-                    header = astropy.io.fits.open(rawPath+'/'+ronchilist[i][0])
-                    date = header[0].header[ 'DATE'].replace('-','')
-                    if str(date) == newdate.strftime('%Y%m%d'):
-                        # If so, copy it to the appropriate calibrations directory and write an ronchilist.
-                        shutil.copy(rawPath + '/' + ronchilist[i][0], './')
-                        writeList(ronchilist[i][0], 'ronchilist', path)
-                        logging.info("\n#####################################################################")
-                        logging.info("#####################################################################")
-                        logging.info("")
-                        logging.info("     WARNING in sort: found a ronchi taken one day after a science frame.")
-                        logging.info("                      "+str(sciImageList[i]))
-                        logging.info("                       using that.")
-                        logging.info("")
-                        logging.info("#####################################################################")
-                        logging.info("#####################################################################\n")
-                        foundronchiFlag = True
-                        ronchilist[i][1] = 0
-                if not foundronchiFlag:
-                    # If that quick check fails, give user a chance to try and provide an ronchi file.
-                    a = raw_input("\n Please provide a textfile called ronchilist in " + str(os.getcwd()) + \
-                    " or be sure not to attempt a wavelength calibration for this directory.")
+        checkListExists(sciImageList[i], arclist, 'arclist', 'arc', rawPath)
+        checkListExists(sciImageList[i], arcdarklist, 'arcdarklist', 'arc dark', rawPath)
+        checkListExists(sciImageList[i], ronchilist, 'ronchilist', 'ronchi flat', rawPath)
+        
         os.chdir(path1)
 
     # Change back to original working directory.
@@ -1487,6 +1252,61 @@ def removeOldScienceMatchedTellsList(telluric_frame_paths):
     for tell_obs_dir in tell_obs_dirs:
         if (os.path.exists(os.path.join(tell_obs_dir, 'scienceMatchedTellsList'))):
             os.remove(os.path.join(tell_obs_dir, 'scienceMatchedTellsList'))
+
+
+def checkListExists(science_frame, in_list, list_name, list_description, rawPath, check_exp_time=False):
+    # $list_name exists and has more than one file.
+    try:
+        listFile = open(list_name, "r").readlines()
+        if len(listFile) == 1:
+            logging.info("\n#####################################################################")
+            logging.info("#####################################################################")
+            logging.info("")
+            logging.info("     WARNING in sort: only 1 {} frame found for science".format(list_description))
+            logging.info("                      frame "+str(science_frame))
+            logging.info("")
+            logging.info("#####################################################################")
+            logging.info("#####################################################################\n")
+    except IOError:
+        logging.info("\n#####################################################################")
+        logging.info("#####################################################################")
+        logging.info("")
+        logging.info("     WARNING in sort: no {} found for science frame".format(list_name))
+        logging.info("                      "+str(science_frame))
+        logging.info("")
+        logging.info("#####################################################################")
+        logging.info("#####################################################################\n")
+
+        # Sometimes calibration frames can be taken a day after the observing night. First
+        # look for these, and if they are not found, ask the user to provide some calibration frames.
+        foundFlag = False
+        # Get date before and after the science observation
+        t=time.strptime(date,'%Y%m%d')
+        newdate_after=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(1)
+        newdate_before=datetime.date(t.tm_year,t.tm_mon,t.tm_mday)-datetime.timedelta(1)
+        # Loop through in_list and see if there is a frame taken on this date, optionally checking that exposure times match
+        for i in range(len(in_list)):
+            header = astropy.io.fits.open(rawPath+'/'+in_list[i][0])
+            date = header[0].header['DATE'].replace('-','')
+
+            if (str(date) == newdate_after.strftime('%Y%m%d')) or (str(date) == newdate_before.strftime('%Y%m%d')):
+                # If so, copy it to the appropriate calibrations directory and write in the text list.
+                shutil.copy(rawPath + '/' + in_list[i][0], './')
+                writeList(in_list[i][0], list_name, path)
+                logging.info("\n#####################################################################")
+                logging.info("#####################################################################")
+                logging.info("")
+                logging.info("     WARNING in sort: found a {} taken one day before/after a science frame.".format(list_description))
+                logging.info("                      "+str(science_frame))
+                logging.info("                       using that.")
+                logging.info("")
+                logging.info("#####################################################################")
+                logging.info("#####################################################################\n")
+                foundFlag = True
+                in_list[i][1] = 0
+        if not foundFlag:
+            # If that quick check fails, give user a chance to try and provide a $list_name file.
+            a = raw_input("\n Please provide a textfile called {} in ".format(list_name) + str(os.getcwd()))
 
 
 
