@@ -151,7 +151,8 @@ def start():
             os.mkdir('./rawData')
         if dataSource == 'CADC':
             logging.info('\nDownloading data from the CADC archive to ./rawData. This will take a few minutes.')
-            downloadQueryCadc(program, os.getcwd()+'/rawData')
+            query = "SELECT observationID, publisherID, productID FROM caom2.Observation AS o JOIN caom2.Plane AS p ON o.obsID=p.obsID WHERE instrument_name='NIFS' AND proposal_id={}".format("'" + program + "'")
+            downloadQueryCadc(query, os.getcwd()+'/rawData')
         elif dataSource == 'GSA':
             if proprietaryCookie:
                 download_query_gemini(program, './rawData', proprietaryCookie)

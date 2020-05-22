@@ -1193,16 +1193,14 @@ def MEFarith(MEF, image, op, result):
 
 #-----------------------------------------------------------------------------#
 
-def downloadQueryCadc(program, directory='./rawData'):
+def downloadQueryCadc(query, directory='./rawData'):
     """
     Finds and downloads all CADC files for a particular gemini program ID to
     the current working directory.
     """
 
     cadc = Cadc()
-    job = cadc.create_async("SELECT observationID, publisherID, productID FROM caom2.Observation \
-                             AS o JOIN caom2.Plane AS p ON o.obsID=p.obsID \
-                             WHERE instrument_name='NIFS' AND proposal_id={}".format("'"+program+"'"))
+    job = cadc.create_async(query)
     job.run().wait()
     job.raise_if_error()
     result = job.fetch_result().to_table()
