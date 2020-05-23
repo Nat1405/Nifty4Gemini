@@ -186,10 +186,7 @@ def start():
             logging.warning("Insufficient tellurics found. Turning off telluric correction.", exc_info=True)
             turnOffTelluricCorrectionFluxCalibration()
         
-        try:
-            calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource)
-        except CalibrationsNotFoundError as e:
-            raise e
+        calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource)
 
         # If a telluric reduction will be performed sort the science and telluric images based on time between observations.
         # This will NOT be executed if -t False is specified at command line.
