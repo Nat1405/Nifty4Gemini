@@ -178,21 +178,27 @@ def start():
 
     # IF a local raw directory path is provided, sort data.
     if rawPath:
-        if manualMode:
-            a = raw_input("About to enter makePythonLists().")
+        
         allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, skyFrameList, telskyFrameList, obsidDateList, sciImageList = makePythonLists(rawPath, skyThreshold)
-        if manualMode:
-            a = raw_input("About to enter sortScienceAndTelluric().")
-        objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageList, rawPath)
-        if manualMode:
-            a = raw_input("About to enter sortCalibrations().")
-        calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource)
+        try:
+            objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageList, rawPath)
+        except TelluricsNotFoundError:
+            logging.warning("Insufficient tellurics found. Turning off telluric correction.", exc_info=True)
+            turnOffTelluricCorrectionFluxCalibration()
+        
+        try:
+            calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource)
+        except CalibrationsNotFoundError as e:
+            raise e
+
         # If a telluric reduction will be performed sort the science and telluric images based on time between observations.
         # This will NOT be executed if -t False is specified at command line.
         if sortTellurics:
-            if manualMode:
-                a = raw_input("About to enter matchTellurics().")
-            matchTellurics(telluricDirectoryList, scienceDirectoryList, telluricTimeThreshold)
+            try:
+                matchTellurics(telluricDirectoryList, scienceDirectoryList, telluricTimeThreshold)
+            except TelluricsNotFoundError:
+                logging.warning("Insufficient tellurics found. Turning off telluric correction.", exc_info=True)
+                turnOffTelluricCorrectionFluxCalibration()
 
     # Exit if no or incorrectly formatted input is given.
     else:
@@ -697,11 +703,12 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
     else:
         logging.info("\nExpected number of science and sky frames copied.\n")
 
-    logging.info("\nDone sorting and copying science and tellurics. Moving on to Calibrations.\n")
 
     # Test for telluric directories with mis-identified sky frames. For now, we identify sky frames
     # based on absolute P and Q offsets, not relative to a zero point. This can cause problems.
     # TODO(nat): look into if it is worth it to use relative P and Q offsets.
+    # If there's a problem with the tellurics directory, try to fix it; if we can't, log a warning and turn off the telluric reduction.
+
     for telluric_directory in telDirList:
         if os.path.exists(telluric_directory + '/skyFrameList') and not os.path.exists(telluric_directory + '/tellist'):
             logging.info("\n#####################################################################")
@@ -719,12 +726,17 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
             os.chdir(telluric_directory)
             rewriteSciImageList(2.0, "Telluric")
             try:
-                sciImageList = open('tellist', "r").readlines()
-                logging.info("\nSucceeded; a telluric frame list exists in " + str(os.getcwd()))
+                tellImageList = open('tellist', "r").readlines()
+                if len(tellImageList) > 0:
+                    logging.info("\nSucceeded; a telluric frame list exists in " + str(os.getcwd()))
+                else:
+                    raise IOError()
             except IOError:
-                logging.info("\nWARNING: no telluric frames found in " + str(os.getcwd()) + ". You may have to adjust the skyThreshold parameter.")
-                a = raw_input("Please make a tellist (list of telluric frames) in " + str(telluric_directory))
+                logging.error("\nWARNING: no telluric frames found in " + str(os.getcwd()) + ". You may have to adjust the skyThreshold parameter.")
+                raise TelluricsNotFoundError()
             os.chdir(path)
+
+    logging.info("\nDone sorting and copying science and tellurics. Moving on to Calibrations.\n")
 
     os.chdir(path)
 
@@ -1135,11 +1147,8 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
 
             telluric_frame = matchScienceTelluric(science_frame, telluric_frame_paths)
 
-            try:
-                assert abs(timeCalc(telluric_frame) - timeCalc(science_frame)) < telluricTimeThreshold
-            except AssertionError as e:
-                logging.error("The closest telluric frame in time ({}) for science frame {} has a calculated time delta of {} seconds. This is over the allowed telluric time threshold of {} seconds specified in the config file. Terminating.".format(science_frame, telluric_frame, abs(timeCalc(telluric_frame) - timeCalc(science_frame)), telluricTimeThreshold))
-                raise e
+            if abs(timeCalc(telluric_frame) - timeCalc(science_frame)) > telluricTimeThreshold:
+                raise TelluricsNotFoundError("The closest telluric frame in time ({}) for science frame {} has a calculated time delta of {} seconds. This is over the allowed telluric time threshold of {} seconds specified in the config file. Terminating.".format(science_frame, telluric_frame, abs(timeCalc(telluric_frame) - timeCalc(science_frame)), telluricTimeThreshold))
 
             appendToscienceMatchedTellsList(science_frame, telluric_frame)
 
@@ -1172,10 +1181,11 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
             tellurics_frames.sort()
             if len(science_frames) != len(tellurics_frames):
                 logging.error("A telluric correction was requested but not enough tellurics were found in {}. Terminating.".format(targetDateGratePath))
-                raise ValueError
+                raise TelluricsNotFoundError()
             for science, telluric in zip(science_frames, tellurics_frames):
                 if science != telluric:
                     logging.error("Science frame and scienceMatchedTellsLists differ for {}. Terminating.".format(targetDateGratePath))
+                    raise TelluricsNotFoundError()
 
 
     # ---------------------------- End Tests --------------------------------- #
@@ -1488,7 +1498,23 @@ class CalibrationsNotFoundError(Exception):
     """Raised when calibrations aren't found for a particular science frame."""
     pass
 
+class TelluricsNotFoundError(Exception):
+    """Raised when tellurics aren't found for a particular science frame."""
+    pass
 
+class ScienceObservationError(Exception):
+    """Raised when there's a problem with a particular science directory.
+    Can be used to skip the reduction for that particular directory."""
+    pass
+
+def turnOffTelluricCorrectionFluxCalibration():
+    with open('./config.cfg') as config_file:
+        options = ConfigObj(config_file, unrepr=True)
+    options['nifsPipelineConfig']['telluricReduction'] = False
+    options['nifsPipelineConfig']['telluricCorrection'] = False
+    options['nifsPipelineConfig']['fluxCalibration'] = False
+    with open('./config.cfg', 'w') as config_file:
+        options.write(config_file)
 
 #--------------------------- End of Functions ---------------------------------#
 

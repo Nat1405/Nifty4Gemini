@@ -138,15 +138,14 @@ def start(args):
     GetConfig(args, "nifsPipeline")
 
     # TODO(nat): fix this. It isn't recursively printing the dictionaries of values.
-    logging.info("\nParameters for this data reduction as read from ./config.cfg:\n")
-    with open('./config.cfg') as config_file:
-        config = ConfigObj(config_file, unrepr=True)
-        for i in config:
-            if isinstance(config[i], dict):
-                for k in config[i]:
-                    logging.info(str(k) + " " + str(config[i][k]))
-            else:
-                logging.info(str(i) + " " + str(config[i]))
+    logging.info("\nParameters for this data reduction as read on startup from ./config.cfg:\n")
+    config = reloadConfig()
+    for i in config:
+        if isinstance(config[i], dict):
+            for k in config[i]:
+                logging.info(str(k) + " " + str(config[i][k]))
+        else:
+            logging.info(str(i) + " " + str(config[i]))
     logging.info("")
 
     # Load pipeline configuration from ./config.cfg that is used by this script.
@@ -182,10 +181,9 @@ def start(args):
     ##                      STEP 1: Sort the raw data.                       ##
     ###########################################################################
 
-    if sort:
-        if manualMode:
-            a = raw_input('About to enter nifsSort.')
+    if config['nifsPipelineConfig']['sort']:
         nifsSort.start()
+        config = reloadConfig()
     # By now, we should have paths to the three types of raw data. Print them out.
     printDirectoryLists()
 
@@ -193,42 +191,37 @@ def start(args):
     ##                STEP 2: Reduce baseline calibrations.                  ##
     ###########################################################################
 
-    if calibrationReduction:
-        if manualMode:
-            a = raw_input('About to enter nifsBaselineCalibration.')
+    if config['nifsPipelineConfig']['calibrationReduction']:
         nifsBaselineCalibration.start()
+        config = reloadConfig()
 
     ###########################################################################
     ##                STEP 3: Reduce telluric observations.                  ##
     ###########################################################################
 
-    if telluricReduction:
-        if manualMode:
-            a = raw_input('About to enter nifsReduce to reduce Tellurics.')
+    if config['nifsPipelineConfig']['telluricReduction']:
         nifsReduce.start('Telluric')
+        config = reloadConfig()
 
     ###########################################################################
     ##                 STEP 4: Reduce science observations.                  ##
     ###########################################################################
 
-    if scienceReduction:
-        if manualMode:
-            a = raw_input('About to enter nifsReduce to reduce science.')
+    if config['nifsPipelineConfig']['scienceReduction']:
         nifsReduce.start('Science')
-    if telluricCorrection:
-        if manualMode:
-            a = raw_input('About to enter nifsTelluric to make and create telluric corrected cubes.')
+        config = reloadConfig()
+
+    if config['nifsPipelineConfig']['telluricCorrection']:
         nifsTelluric.run()
+        config = reloadConfig()
 
-    if fluxCalibration:
-        if manualMode:
-            a = raw_input('About to enter nifsFluxCalibrate to make and create flux calibrated and telluric corrected cubes.')
+    if config['nifsPipelineConfig']['fluxCalibration']:
         nifsFluxCalibrate.run()
+        config = reloadConfig()
 
-    if merge:
-        if manualMode:
-            a = raw_input('About to enter nifsMerge to merge final 3D data cubes to single cubes.')
+    if config['nifsPipelineConfig']['merge']:
         nifsMerge.run()
+        config = reloadConfig()
 
     ###########################################################################
     ##                    Data Reduction Complete!                           ##
@@ -245,6 +238,11 @@ def start(args):
     logging.info('###########################################################\n')
 
     return
+
+def reloadConfig():
+    with open('./config.cfg') as config_file:
+        config = ConfigObj(config_file, unrepr=True)
+    return config
 
 if __name__ == '__main__':
     # This block could let us call start nifsPipeline.py from the command line. It is disabled for now.
