@@ -1018,8 +1018,7 @@ def checkSameLengthFlatLists():
             else:
                 del flatdarklist[-1]
             if len(flatlist) == 0 or len(flatdarklist) == 0:
-                logging.error("Error trying to make a flatlist and a flatdarklist the same length in {}. Terminating.".format(os.getcwd()))
-                raise IOError
+                raise CalibrationsError("Error trying to make a flatlist and a flatdarklist the same length in {}.".format(os.getcwd()))
         # Write the new flatlist to the flatlist textfile, overwriting anything already there.
         with open('./flatlist', 'w') as f:
             for item in flatlist:
@@ -1269,7 +1268,21 @@ def writeWithTempFile(request, filename):
 
     return filename
 
+class CalibrationsError(Exception):
+    """General error for tasks while getting calibrations."""
 
+class CalibrationsNotFoundError(CalibrationsError):
+    """Raised when calibrations aren't found for a particular science frame."""
+    pass
+
+class TelluricsNotFoundError(Exception):
+    """Raised when tellurics aren't found for a particular science frame."""
+    pass
+
+class ScienceObservationError(Exception):
+    """Raised when there's a problem with a particular science directory.
+    Can be used to skip the reduction for that particular directory."""
+    pass
 
 
 

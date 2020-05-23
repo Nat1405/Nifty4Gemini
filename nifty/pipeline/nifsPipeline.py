@@ -107,7 +107,7 @@ def start(args):
     RUNTIME_DATA_PATH = pkg_resources.resource_filename('nifty', 'runtimeData/')
 
     # Format logging options.
-    FORMAT = '%(asctime)s %(message)s'
+    FORMAT = '%(asctime)s %(levelname)s %(message)s'
     DATEFMT = datefmt()
 
     # Set up the main logging file.

@@ -49,7 +49,8 @@ from ..configobj.configobj import ConfigObj
 # TODO(nat): goodness, this is a lot of functions. It would be nice to split this up somehow.
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
-rewriteSciImageList, datefmt, downloadQueryCadc
+rewriteSciImageList, datefmt, downloadQueryCadc, CalibrationsNotFoundError, CalibrationsError, TelluricsNotFoundError, \
+ScienceObservationError
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -97,10 +98,6 @@ def start():
 
     # Store current working directory for later use.
     path = os.getcwd()
-
-    # Format logging options.
-    FORMAT = '%(asctime)s %(message)s'
-    DATEFMT = datefmt()
 
     """# Set up the logging file.
     logging.basicConfig(filename='Nifty.log',format=FORMAT,datefmt=DATEFMT,level=logging.DEBUG)
@@ -185,8 +182,8 @@ def start():
         except TelluricsNotFoundError:
             logging.warning("Insufficient tellurics found. Turning off telluric correction.", exc_info=True)
             turnOffTelluricCorrectionFluxCalibration()
-        
-        calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource)
+
+        scienceDirectoryList, telluricDirectoryList, calibrationDirectoryList = sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource, scienceDirectoryList, telluricDirectoryList)
 
         # If a telluric reduction will be performed sort the science and telluric images based on time between observations.
         # This will NOT be executed if -t False is specified at command line.
@@ -741,7 +738,7 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
 
 #----------------------------------------------------------------------------------------#
 
-def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource):
+def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, objectDateGratingList, objDirList, obsidDateList, sciImageList, rawPath, manualMode, dataSource, scienceDirectoryList, telluricDirectoryList):
 
     """Sort calibrations into appropriate directories based on date.
     """
@@ -997,99 +994,13 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
 
 
     logging.info("\nChecking that each science image has required calibration data. ")
-    # For each science image, read its header data and try to change to the appropriate directory.
-    # Check that:
-    for i in range(len(sciImageList)):
-        header = astropy.io.fits.open(rawPath+'/'+sciImageList[i])
 
-        obstype = header[0].header['OBSTYPE'].strip()
-        obsid = header[0].header['OBSID'][-3:].replace('-','')
-        grat = header[0].header['GRATING'][0:1]
-        date = header[0].header[ 'DATE'].replace('-','')
-        obsclass = header[0].header['OBSCLASS']
-        obj = header[0].header['OBJECT']
-        obj = re.sub('[^a-zA-Z0-9\n\.]', '', obj)
-
-        # a science and Calibrations directory are present.
+    for science_frame in sciImageList:
         try:
-            os.chdir(path1+'/'+obj+'/'+date+'/'+grat+'/obs'+obsid+'/')
-            os.chdir('../../Calibrations_'+grat+'/')
-        except OSError as e:
-            logging.info("\n#####################################################################")
-            logging.info("#####################################################################")
-            logging.info("")
-            logging.info("     WARNING in sort: no Calibrations directory found for ")
-            logging.info("                      science frame "+str(sciImageList[i]))
-            logging.info("")
-            logging.info("#####################################################################")
-            logging.info("#####################################################################\n")
-            logging.error("Terminating due to no calibrations being found in {}.".format(os.path.join(path1, obj, date, grat, 'obs'+obsid)))
-            raise e
-
-        try:
-            checkListExists(sciImageList[i], flatlist, 'flatlist', 'lamps on flat', rawPath)
-        except RuntimeError as e_list:
-            try:
-                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'flatlist', 'FLAT', dataSource)
-            except RuntimeError as e_download:
-                raise CalibrationsNotFoundError(
-                    [
-                        e_list,
-                        e_download
-                    ]
-                )
-        try:
-            checkListExists(sciImageList[i], flatdarklist, 'flatdarklist', 'lamps off flat', rawPath)
-        except RuntimeError as e_list:
-            try:
-                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'flatdarklist', 'DARK', dataSource)
-            except RuntimeError as e_download:
-                raise CalibrationsNotFoundError(
-                    [
-                        e_list,
-                        e_download
-                    ]
-                )
-        # Make sure flatlist and flatdarklist are the same length. nsflat() complains otherwise.
-        checkSameLengthFlatLists()
-
-        try:
-            checkListExists(sciImageList[i], arclist, 'arclist', 'arc', rawPath)
-        except RuntimeError as e_list:
-            try:
-                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'arclist', 'ARC', dataSource)
-            except RuntimeError as e_download:
-                raise CalibrationsNotFoundError(
-                    [
-                        e_list,
-                        e_download
-                    ]
-                )
-        try:
-            checkListExists(sciImageList[i], arcdarklist, 'arcdarklist', 'arc dark', rawPath)
-        except RuntimeError as e_list:
-            try:
-                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'arcdarklist', 'DARK', dataSource)
-            except RuntimeError as e_download:
-                raise CalibrationsNotFoundError(
-                    [
-                        e_list,
-                        e_download
-                    ]
-                )
-        try:
-            checkListExists(sciImageList[i], ronchilist, 'ronchilist', 'ronchi flat', rawPath)
-        except RuntimeError as e_list:
-            try:
-                tryDownloadPlusMinusOneDay(rawPath, sciImageList[i], 'ronchilist', 'RONCHI', dataSource)
-            except RuntimeError as e_download:
-                raise CalibrationsNotFoundError(
-                    [
-                        e_list,
-                        e_download
-                    ]
-                )
-
+            checkCalibrationsPresent(rawPath, science_frame, flatlist, flatdarklist, arclist, arcdarklist, ronchilist, dataSource)
+        except CalibrationsError:
+            logging.error("Calibrations not found for science frame {}. Unmarking all affected science and telluric telluric directories for reduction.".format(science_frame), exc_info=True)
+            scienceDirectoryList, telluricDirectoryList, calDirList = removeAffectedDirectories(os.path.join(rawPath, science_frame), scienceDirectoryList, telluricDirectoryList, calDirList)
         os.chdir(path1)
 
     # Change back to original working directory.
@@ -1097,7 +1008,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
 
     # ---------------------------- End Tests --------------------------------- #
 
-    return calDirList
+    return scienceDirectoryList, telluricDirectoryList, calDirList
 
 #----------------------------------------------------------------------------------------#
 
@@ -1125,7 +1036,11 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
     # Get list of unique target, date, grating triples
     target_date_grates = getTargetDateGrates(obsDirList)
 
-    basePath = os.path.sep.join(os.path.normpath(obsDirList[0]).split(os.path.sep)[:-4])
+    try:
+        basePath = os.path.sep.join(os.path.normpath(obsDirList[0]).split(os.path.sep)[:-4])
+    except IndexError:
+        logging.error("No tellurics directories were provided.")
+        raise TelluricsNotFoundError()
     for target, date, grating in target_date_grates:
         targetDateGratePath = os.path.join(basePath, target, date, grating)
         # Get a list of paths to the science frames by opening the scienceFrameLists
@@ -1350,7 +1265,6 @@ def tryDownloadPlusMinusOneDay(rawPath, science_frame, list_name, data_type, dat
     # Query data source for calibrations plus or minus one day of a given science frame.
     if dataSource == 'CADC':
         day_before, day_after = getPlusMinusDays(os.path.join(rawPath, science_frame), 1)
-        import pdb; pdb.set_trace()
         newdate_before_mjd = astropy.time.Time(day_before).mjd
         # CADC is exclusive of upper bound so need to add a day.
         newdate_after_mjd = astropy.time.Time(day_after+datetime.timedelta(1)).mjd
@@ -1479,6 +1393,7 @@ class HeaderInfo(object):
                 raise ValueError("Data isn't from NIFS!")
             self.obstype = header[0].header['OBSTYPE'].strip()
             self.ID = header[0].header['OBSID']
+            self.grat = header[0].header['GRATING'][0:1]
             self.date = header[0].header[ 'DATE'].replace('-','')
             self.obsclass = header[0].header['OBSCLASS']
             self.aper = header[0].header['APERTURE']
@@ -1490,20 +1405,6 @@ class HeaderInfo(object):
             logging.error("Error getting header info for frame {}.".format(frame))
             raise e
 
-
-class CalibrationsNotFoundError(Exception):
-    """Raised when calibrations aren't found for a particular science frame."""
-    pass
-
-class TelluricsNotFoundError(Exception):
-    """Raised when tellurics aren't found for a particular science frame."""
-    pass
-
-class ScienceObservationError(Exception):
-    """Raised when there's a problem with a particular science directory.
-    Can be used to skip the reduction for that particular directory."""
-    pass
-
 def turnOffTelluricCorrectionFluxCalibration():
     with open('./config.cfg') as config_file:
         options = ConfigObj(config_file, unrepr=True)
@@ -1512,6 +1413,114 @@ def turnOffTelluricCorrectionFluxCalibration():
     options['nifsPipelineConfig']['fluxCalibration'] = False
     with open('./config.cfg', 'w') as config_file:
         options.write(config_file)
+
+def checkCalibrationsPresent(rawPath, science_frame, flatlist, flatdarklist, arclist, arcdarklist, ronchilist, dataSource):
+    header = astropy.io.fits.open(rawPath+'/'+science_frame)
+
+    obstype = header[0].header['OBSTYPE'].strip()
+    obsid = header[0].header['OBSID'][-3:].replace('-','')
+    grat = header[0].header['GRATING'][0:1]
+    date = header[0].header[ 'DATE'].replace('-','')
+    obsclass = header[0].header['OBSCLASS']
+    obj = header[0].header['OBJECT']
+    obj = re.sub('[^a-zA-Z0-9\n\.]', '', obj)
+
+    # a science and Calibrations directory are present.
+    try:
+        os.chdir(os.getcwd()+'/'+obj+'/'+date+'/'+grat+'/obs'+obsid+'/')
+        os.chdir('../../Calibrations_'+grat+'/')
+    except OSError as e:
+        logging.info("\n#####################################################################")
+        logging.info("#####################################################################")
+        logging.info("")
+        logging.info("     WARNING in sort: no Calibrations directory found for ")
+        logging.info("                      science frame "+str(science_frame))
+        logging.info("")
+        logging.info("#####################################################################")
+        logging.info("#####################################################################\n")
+        raise CalibrationsNotFoundError("Calibrations directory not found in {}.".format(os.path.join(os.getcwd(), obj, date, grat, 'obs'+obsid)))
+
+    try:
+        checkListExists(science_frame, flatlist, 'flatlist', 'lamps on flat', rawPath)
+    except RuntimeError as e_list:
+        try:
+            tryDownloadPlusMinusOneDay(rawPath, science_frame, 'flatlist', 'FLAT', dataSource)
+        except Exception as e_download:
+            raise CalibrationsNotFoundError(
+                [
+                    e_list,
+                    e_download
+                ]
+            )
+    try:
+        checkListExists(science_frame, flatdarklist, 'flatdarklist', 'lamps off flat', rawPath)
+    except RuntimeError as e_list:
+        try:
+            tryDownloadPlusMinusOneDay(rawPath, science_frame, 'flatdarklist', 'DARK', dataSource)
+        except Exception as e_download:
+            raise CalibrationsNotFoundError(
+                [
+                    e_list,
+                    e_download
+                ]
+            )
+    # Make sure flatlist and flatdarklist are the same length. nsflat() complains otherwise.
+    checkSameLengthFlatLists()
+
+    try:
+        checkListExists(science_frame, arclist, 'arclist', 'arc', rawPath)
+    except RuntimeError as e_list:
+        try:
+            tryDownloadPlusMinusOneDay(rawPath, science_frame, 'arclist', 'ARC', dataSource)
+        except Exception as e_download:
+            raise CalibrationsNotFoundError(
+                [
+                    e_list,
+                    e_download
+                ]
+            )
+    try:
+        checkListExists(science_frame, arcdarklist, 'arcdarklist', 'arc dark', rawPath)
+    except RuntimeError as e_list:
+        try:
+            tryDownloadPlusMinusOneDay(rawPath, science_frame, 'arcdarklist', 'DARK', dataSource)
+        except Exception as e_download:
+            raise CalibrationsNotFoundError(
+                [
+                    e_list,
+                    e_download
+                ]
+            )
+    try:
+        checkListExists(science_frame, ronchilist, 'ronchilist', 'ronchi flat', rawPath)
+    except RuntimeError as e_list:
+        try:
+            tryDownloadPlusMinusOneDay(rawPath, science_frame, 'ronchilist', 'RONCHI', dataSource)
+        except Exception as e_download:
+            raise CalibrationsNotFoundError(
+                [
+                    e_list,
+                    e_download
+                ]
+            )
+
+def removeAffectedDirectories(science_frame_absolute, scienceDirectoryList, telluricDirectoryList, calDirList):
+    """ Takes an absolute path to a science frame and removes all relevant science observation, telluric observation,
+    and calibration directories from the list of things to reduce.
+    """
+    headers = HeaderInfo(science_frame_absolute)
+
+    tells_and_science_path = os.path.join(os.path.split(os.getcwd())[0], headers.grat)
+    calibrations_path = os.getcwd()
+
+    # Remove science and telluric observation directories
+    scienceDirectoryList = [x for x in scienceDirectoryList if tells_and_science_path not in x]
+    telluricDirectoryList = [x for x in telluricDirectoryList if tells_and_science_path not in x]
+    calDirList = [x for x in calDirList if calibrations_path not in x]
+
+    return scienceDirectoryList, telluricDirectoryList, calDirList
+
+
 
 #--------------------------- End of Functions ---------------------------------#
 
