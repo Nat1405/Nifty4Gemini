@@ -50,7 +50,7 @@ from ..configobj.configobj import ConfigObj
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
 rewriteSciImageList, datefmt, downloadQueryCadc, CalibrationsNotFoundError, CalibrationsError, TelluricsNotFoundError, \
-ScienceObservationError
+ScienceObservationError, SkyFrameError, ObservationDirError
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -730,9 +730,27 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
                 raise TelluricsNotFoundError()
             os.chdir(path)
 
+
+    # Check that each science frame was copied to a directory, and that directory contains a non-empty skyFrameList and scienceFrameList.
+    for science_frame in sciImageList:
+        headers = HeaderInfo(os.path.join(rawPath, science_frame))
+        try:
+            science_dir = os.path.join(os.getcwd(), headers.objname, headers.date, headers.grat, 'obs'+headers.obsid)
+            checkSkyFrameDivision(science_dir, science=True)
+        except ObservationDirError as e:
+            logging.error("Science frame {} has a problem with the scienceFrameList or skyFrameList in {}. Removing that directory from the list of directories to reduce.".format(science_frame, science_dir), exc_info=True)
+            scienceDirList = [x for x in scienceDirList if x != science_dir]
+
+    # Check that each telluric frame was copied to a directory, and that directory contains a non-empty skyFrameList and scienceFrameList.
+    for telluric_directory in telDirList:
+        try:
+            checkSkyFrameDivision(telluric_directory, science=False)
+        except ObservationDirError as e:
+            logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Reductions involving that directory will be skipped.".format(telluric_directory), exc_info=True)
+            telDirList = [x for x in scienceDirList if x != science_dir]
+
     logging.info("\nDone sorting and copying science and tellurics. Moving on to Calibrations.\n")
 
-    os.chdir(path)
 
     return objDirList, scienceDirList, telDirList
 
@@ -1258,7 +1276,7 @@ def checkListExists(science_frame, in_list, list_name, list_description, rawPath
                 break
                 in_list[i][1] = 0
         else:
-            raise RuntimeError("Error: no {} found in {}; some {} frames are missing. Please provide the calibration frames in the rawData directory and restart the reduction.".format(list_name, os.getcwd(), list_description))
+            raise RuntimeError("Error: no {} found in {}; some {} frames are missing.".format(list_name, os.getcwd(), list_description))
 
 
 def tryDownloadPlusMinusOneDay(rawPath, science_frame, list_name, data_type, dataSource):
@@ -1380,6 +1398,8 @@ def isRonchiFlat(obstype, aper, frame):
         return mean_counts > 500
     return False
 
+def isTelluric(obsclass):
+    return obsclass=='partnerCal'
 
 class HeaderInfo(object):
     def __init__(self, frame):
@@ -1399,6 +1419,7 @@ class HeaderInfo(object):
             self.aper = header[0].header['APERTURE']
             # If object name isn't alphanumeric, make it alphanumeric.
             self.objname = re.sub('[^a-zA-Z0-9\n\.]', '', header[0].header['OBJECT'])
+            self.obsid = header[0].header['OBSID'][-3:].replace('-','')
             self.poff = header[0].header['POFFSET']
             self.qoff = header[0].header['QOFFSET']
         except Exception as e:
@@ -1520,6 +1541,26 @@ def removeAffectedDirectories(science_frame_absolute, scienceDirectoryList, tell
 
     return scienceDirectoryList, telluricDirectoryList, calDirList
 
+
+def checkSkyFrameDivision(observation_dir, science=True):
+    if science:
+        framelist = 'scienceFrameList'
+    else:
+        framelist = 'tellist'
+
+    try:
+        with open(os.path.join(observation_dir, framelist), 'r') as f:
+            object_frames = f.readlines()
+        assert len(object_frames) > 0
+    except (IOError,  AssertionError):
+        raise ObservationDirError("There was a problem with the object frame list (scienceFrameList or tellist) in {}.".format(observation_dir))
+    
+    try:
+        with open(os.path.join(observation_dir, 'skyFrameList'), 'r') as f:
+            sky_frames = f.readlines()
+        assert len(sky_frames) > 0
+    except (IOError, AssertionError):
+        raise SkyFrameError("There was a problem with the skyFrameList in {}.".format(observation_dir))
 
 
 #--------------------------- End of Functions ---------------------------------#

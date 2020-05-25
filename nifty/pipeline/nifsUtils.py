@@ -1284,7 +1284,12 @@ class ScienceObservationError(Exception):
     Can be used to skip the reduction for that particular directory."""
     pass
 
+class ObservationDirError(Exception):
+    """Raised when there's a problem with a particular observation directory,
+    (science OR telluric) and that directory should be excluded from the data reduction process."""
 
+class SkyFrameError(ObservationDirError):
+    """Raised when there's a problem with the skyFrameList in a particular directory."""
 
 
 #-----------------------------------------------------------------------------#
