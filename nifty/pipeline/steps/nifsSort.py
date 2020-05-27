@@ -176,9 +176,9 @@ def start():
     # IF a local raw directory path is provided, sort data.
     if rawPath:
         
-        allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, skyFrameList, telskyFrameList, obsidDateList, sciImageList = makePythonLists(rawPath, skyThreshold)
+        allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = makePythonLists(rawPath, skyThreshold)
         try:
-            objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageList, rawPath)
+            objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold)
         except TelluricsNotFoundError:
             logging.warning("Insufficient tellurics found. Turning off telluric correction.", exc_info=True)
             turnOffTelluricCorrectionFluxCalibration()
@@ -267,9 +267,6 @@ def makePythonLists(rawPath, skyThreshold):
 
     objectDateGratingList = [] # 2D list of object (science or telluric) name, date pairs.
 
-    skyFrameList = [] # List of sky frames.
-    telskyFrameList = [] # List of telluric sky frames.
-
     obsidDateList = [] # 2D list of date, observation id pairs.
     sciDateList = [] # List of unique dates by science (including sky) frames.
 
@@ -329,23 +326,8 @@ def makePythonLists(rawPath, skyThreshold):
             templist = [entry, 1, obsclass]
             allfilelist.append(templist)
 
-            # Create a list of science sky frames.
-            # Differentiating between on target and sky frames.
-            rad = math.sqrt(((poff)**2) + ((qoff)**2))
-
-            # If the offsets are outside a circle of 5.0 units in radius, append to skyFrameList.
-            if obsclass == 'science':
-                sciImageList.append(entry)
-                if rad  >= skyThreshold:
-                    skyFrameList.append(entry)
-
-            # Create a list of telluric sky frames.
-            elif obsclass == 'partnerCal':
-                if rad >= skyThreshold:
-                    telskyFrameList.append(entry)
-
             # Create sciDateList: list of unique dates of science observations.
-            elif obsclass == 'science':
+            if obsclass == 'science':
                 # Append if list is empty or not a duplicate of last entry.
                 if not sciDateList or not sciDateList[-1]==date:
                     sciDateList.append(date)
@@ -433,8 +415,6 @@ def makePythonLists(rawPath, skyThreshold):
     logging.info("Length flatlist (lamps on flat frames): " + str(len(flatlist)))
     logging.info("Length flatdarklist (lamps off flat frames): "+str(len(flatdarklist)))
     logging.info("Length ronchilist (ronchi flat frames): "+str(len(ronchilist)))
-    logging.info("Length skyFrameList (science sky frames): "+str(len(skyFrameList)))
-    logging.info("Length telskyFrameList (telluric sky frames): "+str(len(telskyFrameList)))
 
     # Store number of telluric, telluric, sky, telluric sky and acquisition frames in number_files_to_be_copied.
     number_files_to_be_copied = len(allfilelist)
@@ -445,11 +425,11 @@ def makePythonLists(rawPath, skyThreshold):
 
     logging.info("\nTotal number of frames to be copied: " + str(number_files_to_be_copied + number_calibration_files_to_be_copied))
 
-    return allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, skyFrameList, telskyFrameList, obsidDateList, sciImageList
+    return allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList
 
 #----------------------------------------------------------------------------------------#
 
-def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageList, rawPath):
+def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
 
     """Sorts the science frames, tellurics and acquisitions into the appropriate directories based on date, grating, obsid, obsclass.
     """
@@ -583,12 +563,6 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
             number_files_that_were_copied += 1
             # Update status flag to show entry was copied.
             allfilelist[i][1] = 0
-            # Create an scienceFrameList in the relevant directory.
-            if allfilelist[i][0] not in skyFrameList:
-                writeList(allfilelist[i][0], 'scienceFrameList', objDir+'/'+date+'/'+grat+'/obs'+obsid+'/')
-            # Create a skyFrameList in the relevant directory.
-            if allfilelist[i][0] in skyFrameList:
-                writeList(allfilelist[i][0], 'skyFrameList', objDir+'/'+date+'/'+grat+'/obs'+obsid+'/')
 
         # Copy the most recent acquisition in each set to a new directory to be optionally
         # used later by the user for checks (not used by the pipeline).
@@ -659,12 +633,25 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
                 shutil.copy(rawPath+'/'+allfilelist[i][0], path_to_tellurics+'/Tellurics/obs'+obsid+'/')
                 number_files_that_were_copied += 1
                 allfilelist[i][1] = 0
-                # Create an scienceFrameList in the relevant directory.
-                if allfilelist[i][0] not in telskyFrameList:
-                    writeList(allfilelist[i][0], 'tellist', path_to_tellurics+'/Tellurics/obs'+obsid+'/')
-                # Create a skyFrameList in the relevant directory.
-                if allfilelist[i][0] in telskyFrameList:
-                    writeList(allfilelist[i][0], 'skyFrameList', path_to_tellurics+'/Tellurics/obs'+obsid+'/')
+
+
+    # Run another copy loop to make sure telluric sky frames get copied over.
+    for frame_obj in allfilelist:
+        frame = frame_obj[0]
+        headers = HeaderInfo(os.path.join(rawPath, frame))
+        if isTelluricSky(headers.obsclass, headers.poff, headers.qoff, 2.0):
+            # Find the telluric dir it originally got copied to.
+            for telluric_directory in telDirList:
+                if os.path.exists(os.path.join(telluric_directory, frame)):
+                    tells_prefix = os.path.sep.join(os.path.normpath(telluric_directory).split(os.path.sep)[:-1])
+                    break
+            else:
+                logging.warning("Telluric sky frame {} not found to have been copied.".format(frame))
+            
+            # Copy this telluric frame to all other telluric observation directories with the same target/date/grating triple.
+            telluric_obs = glob.glob(os.path.join(tells_prefix, "obs*"))
+            for tell_obs_dir in telluric_obs:
+                shutil.copy(os.path.join(rawPath, frame), os.path.join(tells_prefix, tell_obs_dir))
 
     # Modify scienceDirList to a format telSort can use.
     tempList = []
@@ -672,7 +659,41 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
         tempList.append(scienceDirList[i][1])
     scienceDirList = tempList
 
+    # make skyFrameList/scienceFrameList, and that directory contains a non-empty skyFrameList and scienceFrameList.
+    for science_directory in list(scienceDirList):
+        try:
+            makeSkyLists(science_directory, skyThreshold, science=True)
+            checkSkyFrameDivision(science_directory, science=True)
+        except ObservationDirError as e:
+            logging.error("Science directory {} has a problem with the scienceFrameList or skyFrameList. Removing that directory from the list of directories to reduce.".format(science_directory), exc_info=True)
+            scienceDirList = [x for x in scienceDirList if x != science_directory]
+
+    # Check that telluric directory contains a non-empty skyFrameList and scienceFrameList.
+    for telluric_directory in list(telDirList):
+        try:
+            makeSkyLists(telluric_directory, skyThreshold, science=False)
+            checkSkyFrameDivision(telluric_directory, science=False)
+        except ObservationDirError as e:
+            logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction.".format(telluric_directory))
+            with open('./config.cfg') as config_file:
+                options = ConfigObj(config_file, unrepr=True)
+            options['telluricReductionConfig']['telluricSkySubtraction'] = False
+            with open('./config.cfg', 'w') as config_file:
+                options.write(config_file)
+            #logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Reductions involving that directory will be skipped.".format(telluric_directory), exc_info=True)
+            #telDirList = [x for x in telDirList if x != telluric_directory]
+            # For now, don't require sky frames for tellurics.
+
     #------------------------------ TESTS -------------------------------------#
+
+    # Check that each science frame was copied to a directory.
+    for science_frame in sciImageList:
+        headers = HeaderInfo(os.path.join(rawPath, science_frame))
+        try:
+            science_dir = os.path.join(os.getcwd(), headers.objname, headers.date, headers.grat, 'obs'+headers.obsid)
+            os.chdir(science_dir)
+        except OSError:
+            logging.error("Science frame {} wasn't copied to a directory; {} was supposed to exist but wasn't found.".format(science_frame, science_dir))
 
     # Check to see which files were not copied.
     logging.info("\nChecking for non-copied science, tellurics and acquisitions.\n")
@@ -682,8 +703,8 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
             logging.info(str(allfilelist[i][0]) + " " + str(allfilelist[i][2]) + " was not copied.")
     logging.info("\nEnd non-copied science, tellurics and acquisitions.\n")
 
-    # Check that all science frames and sky frames were copied.
-    count_from_raw_files = len(sciImageList) + len(skyFrameList)
+    # Check that all science frames were copied.
+    count_from_raw_files = len(sciImageList)
 
     count = 0
     for science_directory in scienceDirList:
@@ -702,7 +723,7 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
     # based on absolute P and Q offsets, not relative to a zero point. This can cause problems.
     # TODO(nat): look into if it is worth it to use relative P and Q offsets.
     # If there's a problem with the tellurics directory, try to fix it; if we can't, log a warning and turn off the telluric reduction.
-
+    """
     for telluric_directory in telDirList:
         if os.path.exists(telluric_directory + '/skyFrameList') and not os.path.exists(telluric_directory + '/tellist'):
             logging.info("\n#####################################################################")
@@ -729,26 +750,7 @@ def sortScienceAndTelluric(allfilelist, skyFrameList, telskyFrameList, sciImageL
                 logging.error("\nWARNING: no telluric frames found in " + str(os.getcwd()) + ". You may have to adjust the skyThreshold parameter.")
                 raise TelluricsNotFoundError()
             os.chdir(path)
-
-
-    # Check that each science frame was copied to a directory, and that directory contains a non-empty skyFrameList and scienceFrameList.
-    for science_frame in sciImageList:
-        headers = HeaderInfo(os.path.join(rawPath, science_frame))
-        try:
-            science_dir = os.path.join(os.getcwd(), headers.objname, headers.date, headers.grat, 'obs'+headers.obsid)
-            checkSkyFrameDivision(science_dir, science=True)
-        except ObservationDirError as e:
-            logging.error("Science frame {} has a problem with the scienceFrameList or skyFrameList in {}. Removing that directory from the list of directories to reduce.".format(science_frame, science_dir), exc_info=True)
-            scienceDirList = [x for x in scienceDirList if x != science_dir]
-
-    # Check that each telluric frame was copied to a directory, and that directory contains a non-empty skyFrameList and scienceFrameList.
-    for telluric_directory in telDirList:
-        try:
-            checkSkyFrameDivision(telluric_directory, science=False)
-        except ObservationDirError as e:
-            logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Reductions involving that directory will be skipped.".format(telluric_directory), exc_info=True)
-            telDirList = [x for x in scienceDirList if x != science_dir]
-
+    """
     logging.info("\nDone sorting and copying science and tellurics. Moving on to Calibrations.\n")
 
 
@@ -1401,6 +1403,9 @@ def isRonchiFlat(obstype, aper, frame):
 def isTelluric(obsclass):
     return obsclass=='partnerCal'
 
+def isTelluricSky(obsclass, poff, qoff, telluricSkyThreshold):
+    return (obsclass=='partnerCal') and math.sqrt((poff**2)+(qoff**2)) < telluricSkyThreshold
+
 class HeaderInfo(object):
     def __init__(self, frame):
         try:
@@ -1558,9 +1563,45 @@ def checkSkyFrameDivision(observation_dir, science=True):
     try:
         with open(os.path.join(observation_dir, 'skyFrameList'), 'r') as f:
             sky_frames = f.readlines()
-        assert len(sky_frames) > 0
-    except (IOError, AssertionError):
+    except IOError:
         raise SkyFrameError("There was a problem with the skyFrameList in {}.".format(observation_dir))
+    if science:
+        try:
+            assert len(sky_frames) > 0
+        except AssertionError:
+            raise SkyFrameError("There was a problem with the skyFrameList in {}.".format(observation_dir))
+
+
+def makeSkyLists(science_dir, skyThreshold, science=True):
+    frames = glob.glob(os.path.join(science_dir, "N2*"))
+
+    object_frame_count = 0
+    sky_frame_count = 0
+
+    for frame in frames:
+        headers = HeaderInfo(frame)
+        radii = math.sqrt((headers.poff**2)+(headers.qoff**2))
+        if science:
+            if radii < skyThreshold:
+                object_frame_count += 1
+                writeList(os.path.split(frame)[1].rstrip('.fits'), 'scienceFrameList', os.path.split(frame)[0])
+            else:
+                sky_frame_count += 1
+                writeList(os.path.split(frame)[1].rstrip('.fits'), 'skyFrameList', os.path.split(frame)[0])
+        else:
+            if radii < skyThreshold:
+                object_frame_count += 1
+                writeList(os.path.split(frame)[1].rstrip('.fits'), 'tellist', os.path.split(frame)[0])
+            else:
+                sky_frame_count += 1
+                writeList(os.path.split(frame)[1].rstrip('.fits'), 'skyFrameList', os.path.split(frame)[0])
+
+    try:
+        assert sky_frame_count < int(2.0*object_frame_count)
+    except AssertionError:
+        logging.error("Sky frame count was {} which is >= 2.0* Object Frame Count ({}) in {}.".format(sky_frame_count, object_frame_count, science_dir))
+        raise SkyFrameError
+
 
 
 #--------------------------- End of Functions ---------------------------------#
