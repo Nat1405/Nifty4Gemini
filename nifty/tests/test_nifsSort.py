@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 
 import pytest
 # try:
@@ -97,6 +98,46 @@ def test_makePythonLists_one_day():
     #                                 "N20140428S0090.fits",
     #                                 "N20140428S0093.fits",
     # ]
+
+
+def a_baby_function():
+    path = os.getcwd()
+    with open(os.path.join(path, 'foo.txt'), 'w') as f:
+        f.write("Hello, world!\n")
+
+
+def test_baby_function(tmpdir, monkeypatch):
+    #p = tmpdir.mkdir("sub").join("foo.txt")
+    #p.write("Hello, world!\n")
+    def mockjoin(path, *args):
+        if len(args) == 0:
+            return str(path)
+        else:
+            print(args)
+            return str( Path(str(path)) / Path(mockjoin(args[0], *args[1:])))
+    def mockcwd():
+        return str(tmpdir)
+    monkeypatch.setattr(os, "getcwd", mockcwd)
+    monkeypatch.setattr(os.path, "join", mockjoin)
+    os.path.join(tmpdir, 'sub', 'bar.txt')
+
+    a_baby_function()
+    p = tmpdir.join('foo.txt')
+    assert p.read() == "Hello, world!\n"
+    assert len(tmpdir.listdir()) == 1
+    #objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
