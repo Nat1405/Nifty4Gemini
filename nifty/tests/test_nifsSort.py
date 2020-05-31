@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from pathlib import Path
 
 import pytest
@@ -101,6 +102,7 @@ def test_makePythonLists_one_day():
 
 
 def a_baby_function():
+    logging.info("START")
     path = os.getcwd()
     with open(os.path.join(path, 'foo.txt'), 'w') as f:
         f.write("Hello, world!\n")
@@ -109,6 +111,9 @@ def a_baby_function():
 def test_baby_function(tmpdir, monkeypatch):
     #p = tmpdir.mkdir("sub").join("foo.txt")
     #p.write("Hello, world!\n")
+    def mocklog(foo):
+        pass
+    monkeypatch.setattr(logging, "info", mocklog)
     def mockjoin(path, *args):
         if len(args) == 0:
             return str(path)
@@ -130,6 +135,28 @@ def test_baby_function(tmpdir, monkeypatch):
 
 
 
+def test_sortScienceAndTelluric(tmpdir, monkeypatch):
+    # Mock os.path.join(), os.getcwd(), logging.info()
+    # Logging mocking
+
+    tmpdir = str(tmpdir)
+    
+    def mocklog(foo):
+        pass
+    monkeypatch.setattr(logging, "info", mocklog)
+    monkeypatch.setattr(logging, "warning", mocklog)
+    monkeypatch.setattr(logging, "error", mocklog)
+    # os.path.join() and os.cwd() mocking
+    def mockjoin(path, *args):
+        if len(args) == 0:
+            return str(path)
+        else:
+            print(args)
+            return str( Path(str(path)) / Path(mockjoin(args[0], *args[1:])))
+    def mockcwd():
+        return str(tmpdir)
+    monkeypatch.setattr(os, "getcwd", mockcwd)
+    monkeypatch.setattr(os.path, "join", mockjoin)
 
 
 
