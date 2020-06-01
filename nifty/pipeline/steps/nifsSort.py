@@ -674,12 +674,8 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
             makeSkyLists(telluric_directory, skyThreshold, science=False)
             checkSkyFrameDivision(telluric_directory, science=False)
         except ObservationDirError as e:
-            logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction.".format(telluric_directory))
-            with open('./config.cfg') as config_file:
-                options = ConfigObj(config_file, unrepr=True)
-            options['telluricReductionConfig']['telluricSkySubtraction'] = False
-            with open('./config.cfg', 'w') as config_file:
-                options.write(config_file)
+            logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction for all telluric observations.".format(telluric_directory))
+            turnOffTelluricSkySub()
             #logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Reductions involving that directory will be skipped.".format(telluric_directory), exc_info=True)
             #telDirList = [x for x in telDirList if x != telluric_directory]
             # For now, don't require sky frames for tellurics.
@@ -1602,7 +1598,12 @@ def makeSkyLists(science_dir, skyThreshold, science=True):
         logging.error("Sky frame count was {} which is >= 2.0* Object Frame Count ({}) in {}.".format(sky_frame_count, object_frame_count, science_dir))
         raise SkyFrameError
 
-
+def turnOffTelluricSkySub():
+    with open('./config.cfg') as config_file:
+        options = ConfigObj(config_file, unrepr=True)
+    options['telluricReductionConfig']['telluricSkySubtraction'] = False
+    with open('./config.cfg', 'w') as config_file:
+        options.write(config_file)
 
 #--------------------------- End of Functions ---------------------------------#
 
