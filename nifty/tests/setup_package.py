@@ -11,7 +11,9 @@ def get_package_data():
              os.path.join('data', '*.xml'),
              os.path.join('data', '*.pem'),
              os.path.join('data', '*.fits'),
-             os.path.join('data', 'GN-2014A-Q-85_one_day', '*.fits')
+             os.path.join('data', 'GN-2014A-Q-85_one_day', '*.fits'),
+             os.path.join('data', 'GN-2014A-Q-85-all', '*.fits'),
+             os.path.join('data', 'json', '*.json')
              ]  # etc, add other extensions
     # you can also enlist files individually by names
     # finally construct and return a dict for the sub module
