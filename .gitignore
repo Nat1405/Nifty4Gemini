@@ -2,3 +2,4 @@
 nifty4gemini.egg-info
 # Compiled python modules.
 *.pyc
+nifty/tests/data/GN-20*
