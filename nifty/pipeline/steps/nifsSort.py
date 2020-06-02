@@ -587,48 +587,23 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
 
 
         if isTelluric(obstype, obsclass):
-            # What if we just copy tellurics to appropriate directory for each target?
-
             logging.info(allfilelist[i][0])
-            timeList = []
-            for k in range(len(scienceDirList)):
-                # Make sure date and gratings match.
-                tempDir = scienceDirList[k][1].split(os.sep)
-                if date in tempDir and grat in tempDir:
-                    # Open the times of all science frames in science_directory.
-                    times = scienceDirList[k][0]
-                    # Find difference in each time from the telluric frame we're trying to sort.
-                    diffList = []
-                    for b in range(len(times)):
-                        difference = abs(telluric_time-scienceDirList[k][0][b])
-                        templist = []
-                        templist.append(difference)
-                        templist.append(scienceDirList[k][1])
-                        diffList.append(templist)
-                    # Find the science frame with the smallest difference.
-                    minDiff = min(diffList)
-                    # Pass that time and path out of the for loop.
-                    timeList.append(minDiff)
-            # Out of the for loop, compare min times from different directories.
-            if timeList:
-                closest_time = min(timeList)
-                # Copy the telluric frame to the path of that science frame.
-                path_to_science_dir = closest_time[1]
-                path_to_tellurics = os.path.split(path_to_science_dir)[0]
+            headers = HeaderInfo(os.path.join(rawPath, allfilelist[i][0]))
+            path_to_tellurics = getBasePathWithTimes(scienceDirList, os.path.join(rawPath, allfilelist[i][0]))
 
-                # Create a Tellurics directory in science_object_name/YYYYMMDD/grating.
+            # Create a Tellurics directory in science_object_name/YYYYMMDD/grating.
 
-                if not os.path.exists(path_to_tellurics + '/Tellurics'):
-                    os.mkdir(path_to_tellurics + '/Tellurics')
-                # Create an obsid (eg. obs25) directory in the Tellurics directory.
-                if not os.path.exists(path_to_tellurics+'/Tellurics/obs'+obsid):
-                    os.mkdir(path_to_tellurics+'/Tellurics/obs'+obsid)
-                    telDirList.append(path_to_tellurics+'/Tellurics/obs'+obsid)
-                elif not telDirList or not telDirList[-1]==path_to_tellurics+'/Tellurics/obs'+obsid:
-                    telDirList.append(path_to_tellurics+'/Tellurics/obs'+obsid)
-                shutil.copy(rawPath+'/'+allfilelist[i][0], path_to_tellurics+'/Tellurics/obs'+obsid+'/')
-                number_files_that_were_copied += 1
-                allfilelist[i][1] = 0
+            if not os.path.exists(path_to_tellurics + '/Tellurics'):
+                os.mkdir(path_to_tellurics + '/Tellurics')
+            # Create an obsid (eg. obs25) directory in the Tellurics directory.
+            if not os.path.exists(path_to_tellurics+'/Tellurics/obs'+obsid):
+                os.mkdir(path_to_tellurics+'/Tellurics/obs'+obsid)
+                telDirList.append(path_to_tellurics+'/Tellurics/obs'+obsid)
+            elif not telDirList or not telDirList[-1]==path_to_tellurics+'/Tellurics/obs'+obsid:
+                telDirList.append(path_to_tellurics+'/Tellurics/obs'+obsid)
+            shutil.copy(rawPath+'/'+allfilelist[i][0], path_to_tellurics+'/Tellurics/obs'+obsid+'/')
+            number_files_that_were_copied += 1
+            allfilelist[i][1] = 0
 
     """
     # Run another copy loop to make sure telluric sky frames get copied over.
@@ -1638,10 +1613,10 @@ def getBasePathWithTimes(scienceDirList, framePath):
     try:
         scienceDirList = sorted(filtered_scienceDirList, key=lambda x: x[0][0])
     except IndexError as e:
-        logging.error("getBasePathWithTimes() called with empty scienceDirList for frame {}!".format(framePath))
+        logging.warning("getBasePathWithTimes() called with empty scienceDirList for frame {}.".format(framePath))
         raise e
 
-    return os.path.sep.join(scienceDirList[0][1].split(os.path.sep)[:-2])
+    return os.path.sep.join(scienceDirList[0][1].split(os.path.sep)[:-1])
 
 #--------------------------- End of Functions ---------------------------------#
 

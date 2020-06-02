@@ -32,27 +32,6 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
     return os.path.join(data_dir, filename)
 
-@patch('nifty.pipeline.steps.nifsSort.makePythonLists',
-        Mock(side_effect=lambda x,y: 
-            (   
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            )
-        )
-    )
-def test_baby_makePythonLists():
-    assert nifsSort.makePythonLists("foo", 2) == (0,0,0,0,0,0,0,0,0)
-
-
-
-
 def test_makePythonLists_one_day():
     allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = nifsSort.makePythonLists(data_path("GN-2014A-Q-85_one_day"), 2.0)
 
@@ -187,42 +166,6 @@ def test_makePythonLists_all_days():
 
     # Skip checks for obsidDateList for now
 
-def test_makePythonLists_all_days_one_target():
-    pass
-
-def a_baby_function():
-    logging.info("START")
-    path = os.getcwd()
-    with open(os.path.join(path, 'foo.txt'), 'w') as f:
-        f.write("Hello, world!\n")
-
-
-def test_baby_function(tmpdir, monkeypatch):
-    #p = tmpdir.mkdir("sub").join("foo.txt")
-    #p.write("Hello, world!\n")
-    def mocklog(foo):
-        pass
-    monkeypatch.setattr(logging, "info", mocklog)
-    def mockjoin(path, *args):
-        if len(args) == 0:
-            return str(path)
-        else:
-            print(args)
-            return str( Path(str(path)) / Path(mockjoin(args[0], *args[1:])))
-    def mockcwd():
-        return str(tmpdir)
-    monkeypatch.setattr(os, "getcwd", mockcwd)
-    monkeypatch.setattr(os.path, "join", mockjoin)
-    os.path.join(tmpdir, 'sub', 'bar.txt')
-
-    a_baby_function()
-    p = tmpdir.join('foo.txt')
-    assert p.read() == "Hello, world!\n"
-    assert len(tmpdir.listdir()) == 1
-    #objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
-
-
-
 @patch('nifty.pipeline.steps.nifsSort.turnOffTelluricSkySub',
     Mock(side_effect=lambda: ()))
 def test_sortScienceAndTelluric(tmpdir, monkeypatch):
@@ -295,7 +238,6 @@ def test_sortScienceAndTelluric(tmpdir, monkeypatch):
 
 
     # Now check all files were copied over to a pre-determined directory structure.
-    # NEEDS REPLACED; THIS IS WRONG. Acquisition folders should have been included.
     result_dir_structure = [
         (os.path.join(tmpdir, 'Titan'), ['20140505', '20140503', '20140428'], []),
         (os.path.join(tmpdir, 'Titan/20140505'), ['K'], []),
@@ -304,7 +246,7 @@ def test_sortScienceAndTelluric(tmpdir, monkeypatch):
         (os.path.join(tmpdir, 'Titan/20140505/K/Tellurics'), ['obs30', 'obs26'], []),
         (os.path.join(tmpdir, 'Titan/20140505/K/Tellurics/obs30'), [], ['N20140505S0127.fits', 'N20140505S0128.fits', 'N20140505S0130.fits', 'N20140505S0129.fits', 'N20140505S0131.fits', 'tellist']),
         (os.path.join(tmpdir, 'Titan/20140505/K/Tellurics/obs26'), [], ['N20140505S0103.fits', 'N20140505S0102.fits', 'N20140505S0101.fits', 'N20140505S0100.fits', 'N20140505S0099.fits', 'tellist']),
-        # (os.path.join(tmpdir, 'Titan/20140505/K/Acquisitions'), [], ['N20140505S0104.fits']),
+        # (os.path.join(tmpdir, 'Titan/20140505/K/Acquisitions'), [], ['N20140505S0104.fits']), # Don't check acquisitions for now, not used in pipeline anyways
         (os.path.join(tmpdir, 'Titan/20140503'), ['K'], []),
         (os.path.join(tmpdir, 'Titan/20140503/K'), ['obs20', 'Tellurics', 'Acquisitions'], []),
         (os.path.join(tmpdir, 'Titan/20140503/K/obs20'), [], ['N20140503S0177.fits', 'N20140503S0169.fits', 'N20140503S0168.fits', 'N20140503S0166.fits', 'N20140503S0167.fits', 'N20140503S0164.fits', 'N20140503S0163.fits', 'N20140503S0162.fits', 'N20140503S0165.fits', 'N20140503S0171.fits', 'N20140503S0172.fits', 'N20140503S0174.fits', 'N20140503S0175.fits', 'N20140503S0176.fits', 'N20140503S0170.fits', 'N20140503S0173.fits', 'scienceFrameList', 'skyFrameList']),
@@ -329,13 +271,11 @@ def test_sortScienceAndTelluric(tmpdir, monkeypatch):
     for item in dir_structure:
         item[1].sort()
         item[2].sort()
-        # Acquisitions aren't deterministic for now so skip them
+        # Acquisitions aren't used for now so skip them
         if 'Acquisitions' not in item[0]:
             dirs_list.append(item)
 
-    # Failing for now because aquisitions aren't being copied over for some reason
     assert sorted(dirs_list) == sorted(result_dir_structure)
-
 
 
     # Check scienceFrameLists, tellists, and skyFrameLists were made properly.
@@ -374,7 +314,7 @@ def test_sortScienceAndTelluric(tmpdir, monkeypatch):
         frames = f.readlines()
     assert sorted(frames) == sorted(['N20140503S0153\n', 'N20140503S0154\n', 'N20140503S0155\n', 'N20140503S0156\n', 'N20140503S0157\n'])
 
-    with open(os.path.join(tmpdir, 'Titan', '20140504', 'K', 'Tellurics', 'obs22', 'tellist')) as f:
+    with open(os.path.join(tmpdir, 'Titan', '20140503', 'K', 'Tellurics', 'obs22', 'tellist')) as f:
         frames = f.readlines()
     assert sorted(frames) == sorted(['N20140503S0181\n', 'N20140503S0182\n', 'N20140503S0183\n', 'N20140503S0184\n', 'N20140503S0185\n'])
 
