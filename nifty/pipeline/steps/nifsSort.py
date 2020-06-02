@@ -293,6 +293,9 @@ def makePythonLists(rawPath, skyThreshold):
     # Make a list of all the files in the rawPath directory.
     rawfiles = glob.glob('N*.fits')
 
+    # Fix for arc dark identification, could be done better...
+    arc_exp_times = []
+
     # Sort and copy each filename in the rawfiles directory into lists.
     for entry in rawfiles:
 
@@ -314,6 +317,7 @@ def makePythonLists(rawPath, skyThreshold):
         objname = re.sub('[^a-zA-Z0-9\n\.]', '', objname)
         poff = header[0].header['POFFSET']
         qoff = header[0].header['QOFFSET']
+        exptime = float(header[0].header['EXPTIME'])
 
         # Make a list of science, telluric and acquisition frames.
         # Use the copied variable (1 not copied, 0 copied) to check later that
@@ -328,17 +332,15 @@ def makePythonLists(rawPath, skyThreshold):
 
             # Create sciDateList: list of unique dates of science observations.
             if obsclass == 'science':
+                sciImageList.append(entry)
                 # Append if list is empty or not a duplicate of last entry.
                 if not sciDateList or not sciDateList[-1]==date:
                     sciDateList.append(date)
 
-        # Add arc frame names to arclist.
+        # Add arc frame names to arclist and save exp times to identify arc darks.
         elif isArc(obstype):
             arclist.append(entry)
-
-        # Add arc dark frame names to arcdarklist.
-        elif isArcDark(obstype):
-            arcdarklist.append(entry)
+            arc_exp_times.append(exptime)
 
         # Add lamps on flat frames to flatlist,
         # add lamps off flat frames to flatdarklist,
@@ -355,25 +357,19 @@ def makePythonLists(rawPath, skyThreshold):
         elif isFlatDark(obstype, aper, entry):
             flatdarklist.append(entry)
 
+    # Do arc dark frames outside of loop b/c need to match by exptime
+    # Add arc dark frame names to arcdarklist.
+    for entry in rawfiles:
+        headers = HeaderInfo(entry)
+        if isArcDark(headers.obstype, headers.exptime, arc_exp_times):
+            arcdarklist.append(entry)
+
     # Based on science (including sky) frames, make a list of unique [object, date] list pairs to be used later.
     for i in range(len(rawfiles)):
-
-        header = astropy.io.fits.open(rawfiles[i])
-        # Store information in variables.
-        instrument = header[0].header['INSTRUME']
-        if instrument != 'NIFS':
-            # Only grab frames belonging to NIFS raw data!
-            continue
-        date = header[0].header['DATE'].replace('-','')
-        obsclass = header[0].header['OBSCLASS']
-        obj = header[0].header['OBJECT']
-        obj= re.sub('[^a-zA-Z0-9\n\.]', '', obj)
-        obstype = header[0].header['OBSTYPE'].strip()
-        obsid = header[0].header['OBSID']
-        grat = header[0].header['GRATING'][0:1]
-
-        if obsclass == 'science':
-            list1 = [obj, date, grat]
+        headers = HeaderInfo(rawfiles[i])
+        
+        if headers.obsclass == 'science':
+            list1 = [headers.objname, headers.date, headers.grat]
             # Append if list is empty or not a duplicate of last entry.
             if not objectDateGratingList or not list1 in objectDateGratingList:
                 objectDateGratingList.append(list1)
@@ -383,18 +379,11 @@ def makePythonLists(rawPath, skyThreshold):
     # This is so we can sort calibrations later by date and observation id.
     n = 0
     for flat in flatlist:
-        header = astropy.io.fits.open(flat)
-        # Store information in variables.
-        instrument = header[0].header['INSTRUME']
-        if instrument != 'NIFS':
-            # Only grab frames belonging to NIFS raw data!
-            continue
-        obsid = header[0].header['OBSID']
-        date = header[0].header['DATE'].replace('-','')
+        headers = HeaderInfo(flat)
         # Make sure no duplicate dates are being entered.
-        if flatlist.index(flat)==0 or not oldobsid==obsid:
+        if flatlist.index(flat)==0 or not oldobsid==headers.ID:
             #if date in sciDateList:
-            list1 = [date, obsid]
+            list1 = [headers.date, headers.ID]
             obsidDateList.append(list1)
             #else:
                 # Ugly fix, we have to check there aren't more flats than science dates.
@@ -402,7 +391,7 @@ def makePythonLists(rawPath, skyThreshold):
             #        list1 = [sciDateList[n], obsid]
              #       obsidDateList.append(list1)
             #n+=1
-        oldobsid = obsid
+        oldobsid = headers.ID
 
     os.chdir(path)
 
@@ -639,7 +628,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
     for frame_obj in allfilelist:
         frame = frame_obj[0]
         headers = HeaderInfo(os.path.join(rawPath, frame))
-        if isTelluricSky(headers.obsclass, headers.poff, headers.qoff, 2.0):
+        if isTelluricSky(headers.obstype, headers.obsclass, headers.poff, headers.qoff, 2.0):
             # Find the telluric dir it originally got copied to.
             for telluric_directory in telDirList:
                 if os.path.exists(os.path.join(telluric_directory, frame)):
@@ -1342,7 +1331,7 @@ def rewriteCalibrationList(list_name):
         with open('arcdarklist', 'w') as f:
             for frame in frames:
                 headers = HeaderInfo(frame)
-                if isArcDark(headers.obstype):
+                if isArcDark(headers.obstype, headers.exptime):
                     writeList(frame, 'arcdarklist', os.getcwd())
                     count += 1
     elif list_name == 'flatdarklist':
@@ -1383,7 +1372,14 @@ def isFlatDark(obstype, aper, frame):
         return mean_counts < 500
     return False
 
-def isArcDark(obstype):
+def isArcDark(obstype, exptime, exptimes=None):
+    """
+    Arc darks are hard because there's no header info that distinguishes them from biases.
+    Thus, we need to compare exptimes with lamps on arcs (assuming no collisions?) to identify.
+    """
+    if exptimes:
+        return (obstype == 'DARK') and (exptime in exptimes)
+    # Don't do an in-depth check if no exptimes.
     return obstype == 'DARK'
 
 def isRonchiFlat(obstype, aper, frame):
@@ -1399,8 +1395,8 @@ def isRonchiFlat(obstype, aper, frame):
 def isTelluric(obsclass):
     return obsclass=='partnerCal'
 
-def isTelluricSky(obsclass, poff, qoff, telluricSkyThreshold):
-    return (obsclass=='partnerCal') and math.sqrt((poff**2)+(qoff**2)) < telluricSkyThreshold
+def isTelluricSky(obstype, obsclass, poff, qoff, telluricSkyThreshold):
+    return (obstype == 'OBJECT') and (obsclass == 'partnerCal') and math.sqrt((poff**2)+(qoff**2)) < telluricSkyThreshold
 
 class HeaderInfo(object):
     def __init__(self, frame):
@@ -1420,9 +1416,10 @@ class HeaderInfo(object):
             self.aper = header[0].header['APERTURE']
             # If object name isn't alphanumeric, make it alphanumeric.
             self.objname = re.sub('[^a-zA-Z0-9\n\.]', '', header[0].header['OBJECT'])
-            self.obsid = header[0].header['OBSID'][-3:].replace('-','')
+            self.obsid = header[0].header['OBSID'].split('-')[-1]
             self.poff = header[0].header['POFFSET']
             self.qoff = header[0].header['QOFFSET']
+            self.exptime = float(header[0].header['EXPTIME'])
         except Exception as e:
             logging.error("Error getting header info for frame {}.".format(frame))
             raise e

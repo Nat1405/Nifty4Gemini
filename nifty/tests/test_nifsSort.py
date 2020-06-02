@@ -67,11 +67,11 @@ def test_makePythonLists_one_day():
                         "N20140428S0085.fits",
                             ]
 
-    # Failing for now, known bug.
-    # assert sorted(arcdarklist) == [
-    #                         "N20140428S0179.fits",
-    #                         "N20140428S0180.fits"
-    #                         ]
+    #Failing for now, known bug.
+    assert sorted(arcdarklist) == [
+                            "N20140428S0179.fits",
+                            "N20140428S0180.fits"
+                            ]
 
     assert sorted(flatlist) == [
                                 "N20140428S0169.fits",
@@ -135,14 +135,14 @@ def test_makePythonLists_all_days():
                         "N20140505S0124.fits"
     ]
 
-    # assert sorted(arcdarklist) == [
-    #                         "N20140428S0179.fits",
-    #                         "N20140428S0180.fits",
-    #                         "N20140503S0251.fits",
-    #                         "N20140503S0252.fits",
-    #                         "N20140505S0338.fits",
-    #                         "N20140505S0339.fits"
-    # ]
+    assert sorted(arcdarklist) == [
+                            "N20140428S0179.fits",
+                            "N20140428S0180.fits",
+                            "N20140503S0251.fits",
+                            "N20140503S0252.fits",
+                            "N20140505S0338.fits",
+                            "N20140505S0339.fits"
+    ]
 
     desired_flatlist = []
     for i in range(169, 174):
