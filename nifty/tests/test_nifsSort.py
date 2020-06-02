@@ -94,13 +94,16 @@ def test_makePythonLists_one_day():
                                     "N20140428S0182.fits"
     ]
 
-    # Failing for now due to a NEW bug...
-    # assert sorted(sciImageList) == [
-    #                                 "N20140428S0086.fits",
-    #                                 "N20140428S0089.fits",
-    #                                 "N20140428S0090.fits",
-    #                                 "N20140428S0093.fits",
-    # ]
+    assert sorted(sciImageList) == [
+                                    "N20140428S0086.fits",
+                                    "N20140428S0087.fits",
+                                    "N20140428S0088.fits",
+                                    "N20140428S0089.fits",
+                                    "N20140428S0090.fits",
+                                    "N20140428S0091.fits",
+                                    "N20140428S0092.fits",
+                                    "N20140428S0093.fits",
+    ]
 
     assert objectDateGratingList == [['Titan', '20140428', 'K']]
 
@@ -174,7 +177,7 @@ def test_makePythonLists_all_days():
                                     # "N20140505S0342.fits"
     ]
 
-    #assert sorted(sciImageList) == sorted(desired_sciImageList)
+    assert sorted(sciImageList) == sorted(desired_sciImageList)
 
     assert sorted(objectDateGratingList) == [
                                         ['Titan', '20140428', 'K'],
