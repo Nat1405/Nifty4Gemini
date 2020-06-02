@@ -175,7 +175,7 @@ def start():
 
     # IF a local raw directory path is provided, sort data.
     if rawPath:
-        
+        import pdb; pdb.set_trace()
         allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = makePythonLists(rawPath, skyThreshold)
         try:
             objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold)
