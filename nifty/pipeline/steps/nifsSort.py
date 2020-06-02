@@ -175,7 +175,6 @@ def start():
 
     # IF a local raw directory path is provided, sort data.
     if rawPath:
-        import pdb; pdb.set_trace()
         allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = makePythonLists(rawPath, skyThreshold)
         try:
             objDirList, scienceDirectoryList, telluricDirectoryList = sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold)
@@ -467,11 +466,11 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
             if not os.path.exists(path+'/'+objname+'/'+date):
                 os.mkdir(path+'/'+objname+'/'+date)
                 objDir = path+'/'+objname+'/'+date
-                if not objDirList or not objDirList[-1]==objDir:
+                if not objDirList or not objDir in objDirList :
                     objDirList.append(objDir)
             else:
                 objDir = path+'/'+objname+'/'+date
-                if not objDirList or not objDirList[-1]==objDir:
+                if not objDirList or not objDir in objDirList:
                     objDirList.append(objDir)
 
     # For each science frame, create a "science_object_name/date/grating/observationid/"
@@ -555,14 +554,20 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
 
         # Copy the most recent acquisition in each set to a new directory to be optionally
         # used later by the user for checks (not used by the pipeline).
-        if obsclass=='acq' and obsclass2=='science':
+        if obsclass=='acq':
             logging.info(allfilelist[i][0])
-            # create an Acquisitions directory in objDir/YYYYMMDD/grating
-            if not os.path.exists(path+'/'+obj2+'/'+date+'/'+grat+'/Acquisitions/'):
-                os.makedirs(path+'/'+obj2+'/'+date+'/'+grat+'/Acquisitions/')
-            shutil.copy(rawPath+'/'+allfilelist[i][0], path+'/'+obj2+'/'+date+'/'+grat+'/Acquisitions/')
-            number_files_that_were_copied += 1
-            allfilelist[i][1] = 0
+            # Find appropriate directory to copy to by doing a time calculation
+            try:
+                basePath = getBasePathWithTimes(scienceDirList, os.path.join(rawPath, allfilelist[i][0]))
+                # create an Acquisitions directory in objDir/YYYYMMDD/grating
+                if not os.path.exists(os.path.join(basePath, 'Acquisitions')):
+                    os.makedirs(os.path.join(basePath, 'Acquisitions'))
+                #if copyMostRecentAcquisition(rawPath +'/'+ allfilelist[i][0], path+'/'+obj2+'/'+date+'/'+grat+'/Acquisitions/' + allfilelist[i][0]):
+                shutil.copy(rawPath+'/'+allfilelist[i][0], os.path.join(basePath, 'Acquisitions'))
+                number_files_that_were_copied += 1
+                allfilelist[i][1] = 0
+            except IndexError:
+                pass
 
     # Copy telluric frames to the appropriate folder.
     # Note: Because the 'OBJECT' of a telluric file header is different then the
@@ -581,7 +586,9 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         telluric_time = timeCalc(rawPath+'/'+allfilelist[i][0])
 
 
-        if obsclass=='partnerCal':
+        if isTelluric(obstype, obsclass):
+            # What if we just copy tellurics to appropriate directory for each target?
+
             logging.info(allfilelist[i][0])
             timeList = []
             for k in range(len(scienceDirList)):
@@ -623,7 +630,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
                 number_files_that_were_copied += 1
                 allfilelist[i][1] = 0
 
-
+    """
     # Run another copy loop to make sure telluric sky frames get copied over.
     for frame_obj in allfilelist:
         frame = frame_obj[0]
@@ -641,7 +648,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
             telluric_obs = glob.glob(os.path.join(tells_prefix, "obs*"))
             for tell_obs_dir in telluric_obs:
                 shutil.copy(os.path.join(rawPath, frame), os.path.join(tells_prefix, tell_obs_dir))
-
+    """
     # Modify scienceDirList to a format telSort can use.
     tempList = []
     for i in range(len(scienceDirList)):
@@ -674,10 +681,8 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
     # Check that each science frame was copied to a directory.
     for science_frame in sciImageList:
         headers = HeaderInfo(os.path.join(rawPath, science_frame))
-        try:
-            science_dir = os.path.join(os.getcwd(), headers.objname, headers.date, headers.grat, 'obs'+headers.obsid)
-            os.chdir(science_dir)
-        except OSError:
+        science_dir = os.path.join(os.getcwd(), headers.objname, headers.date, headers.grat, 'obs'+headers.obsid)
+        if not os.path.isdir(science_dir):
             logging.error("Science frame {} wasn't copied to a directory; {} was supposed to exist but wasn't found.".format(science_frame, science_dir))
 
     # Check to see which files were not copied.
@@ -1392,8 +1397,8 @@ def isRonchiFlat(obstype, aper, frame):
         return mean_counts > 500
     return False
 
-def isTelluric(obsclass):
-    return obsclass=='partnerCal'
+def isTelluric(obstype, obsclass):
+    return (obstype=='OBJECT') and (obsclass=='partnerCal')
 
 def isTelluricSky(obstype, obsclass, poff, qoff, telluricSkyThreshold):
     return (obstype == 'OBJECT') and (obsclass == 'partnerCal') and math.sqrt((poff**2)+(qoff**2)) < telluricSkyThreshold
@@ -1601,6 +1606,42 @@ def turnOffTelluricSkySub():
     options['telluricReductionConfig']['telluricSkySubtraction'] = False
     with open('./config.cfg', 'w') as config_file:
         options.write(config_file)
+
+def copyMostRecentAcquisition(rawPath, destPath):
+    # Determine if this acq is the most recent in the given directory.
+    aqcDir = os.path.split(destPath)[0]
+    aqcs = glob.glob("N2*")
+    times = [timeCalc(os.path.join(aqcDir, x)) for x in aqcs]
+
+    # Should only be most recent acq in there
+    assert len(times) <= 1
+    new_time = timeCalc(rawPath)
+
+    if new_time > times:
+        shutil.copy(rawPath, destPath)
+
+def getBasePathWithTimes(scienceDirList, framePath):
+    # Look at all science dir lists and find the appropriate one based on time.
+    
+    # First narrow by date and grating.
+    headers = HeaderInfo(framePath)
+    filtered_scienceDirList = [x for x in scienceDirList if ((headers.date in x[1].split(os.path.sep)[-3]) and (headers.grat in x[1].split(os.path.sep)[-2]))]
+    
+    # Find time of frame we're looking at
+    frame_time = timeCalc(framePath)
+
+    # Find science dir with the closest time and return that base path.
+    for entry in filtered_scienceDirList:
+        entry[0] = [abs(frame_time - x) for x in entry[0]]
+        entry[0].sort()
+
+    try:
+        scienceDirList = sorted(filtered_scienceDirList, key=lambda x: x[0][0])
+    except IndexError as e:
+        logging.error("getBasePathWithTimes() called with empty scienceDirList for frame {}!".format(framePath))
+        raise e
+
+    return os.path.sep.join(scienceDirList[0][1].split(os.path.sep)[:-2])
 
 #--------------------------- End of Functions ---------------------------------#
 
