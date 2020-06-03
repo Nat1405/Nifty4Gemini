@@ -589,7 +589,10 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         if isTelluric(obstype, obsclass):
             logging.info(allfilelist[i][0])
             headers = HeaderInfo(os.path.join(rawPath, allfilelist[i][0]))
-            path_to_tellurics = getBasePathWithTimes(scienceDirList, os.path.join(rawPath, allfilelist[i][0]))
+            try:
+                path_to_tellurics = getBasePathWithTimes(scienceDirList, os.path.join(rawPath, allfilelist[i][0]))
+            except IndexError:
+                continue
 
             # Create a Tellurics directory in science_object_name/YYYYMMDD/grating.
 
@@ -1612,11 +1615,12 @@ def getBasePathWithTimes(scienceDirList, framePath):
 
     try:
         scienceDirList = sorted(filtered_scienceDirList, key=lambda x: x[0][0])
+        basePath = os.path.sep.join(scienceDirList[0][1].split(os.path.sep)[:-1])
     except IndexError as e:
-        logging.warning("getBasePathWithTimes() called with empty scienceDirList for frame {}.".format(framePath))
+        logging.warning("getBasePathWithTimes() failed to find a base path for frame {}.".format(framePath))
         raise e
 
-    return os.path.sep.join(scienceDirList[0][1].split(os.path.sep)[:-1])
+    return basePath
 
 #--------------------------- End of Functions ---------------------------------#
 
