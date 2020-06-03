@@ -117,7 +117,14 @@ def run():
             valindex = start
             while valindex <= stop:
                 if valindex == 1:
-                    getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature, standardStarBand, standardStarRA, standardStarDec, log, over)
+                    try:
+                        getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature, standardStarBand, standardStarRA, standardStarDec, log, over)
+                    except StandardStarError:
+                        logging.error("Error getting standard star info for frame {} in {}. Turning off telluric correction and flux calibration.".format(rawFrame, os.getcwd()))
+                        os.chdir(path)
+                        iraf.chdir(os.getcwd())
+                        turnOffTelluricCorrectionAndFluxCalibration()
+                        return
 
                     logging.info("\n##############################################################################")
                     logging.info("")
@@ -316,8 +323,8 @@ def getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature
             search_error = str(html2.split('\n'))
         #If that didn't return anything, exit and let the user sort it out
         if 'Noastronomicalobjectfound' in search_error:
-            logging.info("ERROR: didn't find a star at your coordinates within a search radius of 10 or 1 arcsec. You'll need to supply information in a file; see the manual for instructions.")
-            return
+            logging.error("ERROR: didn't find a star at your coordinates within a search radius of 10 or 1 arcsec. You'll need to supply information in a file; see the manual for instructions.")
+            raise StandardStarError()
         # Split source by \n into a list
         html2 = html2.split('\n')
         if specfind:
@@ -333,8 +340,8 @@ def getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature
                 aux += 1
             spectral_type = str(html2[numi][0:3])
             if count > 0:
-                logging.info("ERROR: problem with SIMBAD output. You'll need to supply the spectral type or temperature in the command line prompt.")
-                return
+                logging.error("ERROR: problem with SIMBAD output. You'll need to supply the spectral type or temperature in the command line prompt.")
+                raise StandardStarError()
         if magfind:
             for line in html2:
                 if 'Fluxes' in line:
@@ -355,7 +362,8 @@ def getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature
                         Jmag = html2[i][1:index]
                 i+=1
                 if i>len(html2):
-                    logging.info("ERROR: problem with SIMBAD output. You'll need to supply the magniture in the command line prompt.")
+                    logging.error("ERROR: problem with SIMBAD output. You'll need to supply the magniture in the command line prompt.")
+                    raise StandardStarError()
         if not Kmag:
             Kmag = 'nothing'
         if not Jmag:
@@ -377,8 +385,8 @@ def getStandardInfo(rawFrame, standardStarMagnitude, standardStarSpecTemperature
                     else:
                         count+=1
             if count > 0:
-                logging.info("ERROR: can't find a temperature for spectral type"+ str(spectral_type)+". You'll need to supply information in a file; see the manual for instructions.")
-                return
+                logging.error("ERROR: can't find a temperature for spectral type"+ str(spectral_type)+". You'll need to supply information in a file; see the manual for instructions.")
+                raise StandardStarError()
 
     kelvin = str(kelvin)
     # Write results to std_starRAWNAME.txt
@@ -831,3 +839,19 @@ def linefitManual(spectrum, grating):
         except IOError as e:
             logging.info("It looks as if you didn't use the i key to write out the lineless spectrum. We'll have to try again. --> Re-entering splot")
             iraf.splot(images=spectrum, new_image='final_tel_no_hLines_no_norm', save_file='../PRODUCTS/lorentz_hLines.txt', overwrite='yes')
+
+
+class StandardStarError(Exception):
+    """Raised when there's a problem getting info with the telluric standard star."""
+    pass
+
+def turnOffTelluricCorrectionAndFluxCalibration():
+    with open('./config.cfg') as config_file:
+        options = ConfigObj(config_file, unrepr=True)
+    options['nifsPipelineConfig']['telluricReduction'] = False
+    options['nifsPipelineConfig']['telluricCorrection'] = False
+    options['nifsPipelineConfig']['fluxCalibration'] = False
+    with open('./config.cfg', 'w') as config_file:
+        options.write(config_file)
+
+

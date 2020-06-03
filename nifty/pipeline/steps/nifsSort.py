@@ -1418,7 +1418,7 @@ class HeaderInfo(object):
             logging.error("Error getting header info for frame {}.".format(frame))
             raise e
 
-def turnOffTelluricCorrectionFluxCalibration():
+class turnOffTelluricCorrectionFluxCalibration():
     with open('./config.cfg') as config_file:
         options = ConfigObj(config_file, unrepr=True)
     options['nifsPipelineConfig']['telluricReduction'] = False
