@@ -222,6 +222,10 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
     # If no Merged directory exists that contains a textfile list of cubes:
     # Go to each science directory and copy cubes from there to a new directory called Merged.
 
+    if len(obsDirList) == 0:
+        logging.warning("NifsMerge called with an empty list of directories to look for cubes. Exiting.")
+        return
+
     # TODO(nat): This code seems to work really well, but it could use some polishing. Feel free to refactor nicely!
     for obsDir in obsDirList:
         # Get date, obsid and obsPath by splitting each science directory name.
@@ -445,8 +449,12 @@ def finalMergeCubes(mergeType, over):
     """
     # Load data from the previous step.
     path = os.getcwd()
-    with open('mergedInfo.txt') as data_file:
-        mergedData = json.load(data_file)
+    try:
+        with open('mergedInfo.txt') as data_file:
+            mergedData = json.load(data_file)
+    except IOError:
+        logging.warning("No mergedInfo.txt file found in {}. Skipping merging of merged observation cubes to a single combined cube.".format(os.getcwd()))
+        return
     mergedCubes = mergedData['mergedCubes']
     Merged = mergedData['Merged']
 
