@@ -1585,9 +1585,9 @@ def makeSkyLists(science_dir, skyThreshold, science=True):
                 writeList(os.path.split(frame)[1].rstrip('.fits'), 'skyFrameList', os.path.split(frame)[0])
 
     try:
-        assert sky_frame_count < int(2.0*object_frame_count)
+        assert sky_frame_count < int(3.0*object_frame_count)
     except AssertionError:
-        logging.error("Sky frame count was {} which is >= 2.0* Object Frame Count ({}) in {}.".format(sky_frame_count, object_frame_count, science_dir))
+        logging.error("Sky frame count was {} which is >= 3.0* Object Frame Count ({}) in {}.".format(sky_frame_count, object_frame_count, science_dir))
         raise SkyFrameError
 
 def turnOffTelluricSkySub():
