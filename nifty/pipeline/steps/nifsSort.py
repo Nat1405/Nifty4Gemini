@@ -1638,17 +1638,13 @@ def checkStandardWavelength(observationDirectory):
     frames = glob.glob(os.path.join(observationDirectory, "N20*"))
     for frame in frames:
         headers = HeaderInfo(frame)
-        
-        if ('Z' in headers.grat) and (abs(headers.crWav-1.05) > 0.01):
-            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
-        elif ('J' in headers.grat) and (abs(headers.crWav-1.25) > 0.01):
-            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
-        elif ('H' in headers.grat) and (abs(headers.crWav-1.65) > 0.01):
-            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
-        elif ('K' in headers.grat) and (abs(headers.crWav-2.20) > 0.01):
-            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
-        else:
-            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
+
+        if  (('Z' in headers.grat) and (abs(headers.crWav-1.05) < 0.01)) or \
+            (('J' in headers.grat) and (abs(headers.crWav-1.25) < 0.01)) or \
+            (('H' in headers.grat) and (abs(headers.crWav-1.65) < 0.01)) or \
+            (('K' in headers.grat) and (abs(headers.crWav-2.20) < 0.01)):
+            return
+    raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
 
 
 #--------------------------- End of Functions ---------------------------------#
