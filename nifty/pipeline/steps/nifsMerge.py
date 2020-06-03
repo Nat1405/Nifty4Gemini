@@ -356,6 +356,10 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
         for i in range(len(cubes)):
             # Skip the first cube!
             if i == 0:
+                if im3dtran:
+                    prefix = 'transcube'
+                else:
+                    prefix = 'NONtranscube'
                 continue
             header2 = astropy.io.fits.open(cubes[i])
             # Check to see if we are using ALTAIR. If we are, later we will invert the x offset
