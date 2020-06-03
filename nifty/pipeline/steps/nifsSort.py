@@ -50,7 +50,7 @@ from ..configobj.configobj import ConfigObj
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
 rewriteSciImageList, datefmt, downloadQueryCadc, CalibrationsNotFoundError, CalibrationsError, TelluricsNotFoundError, \
-ScienceObservationError, SkyFrameError, ObservationDirError
+ScienceObservationError, SkyFrameError, ObservationDirError, WavelengthError
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -641,6 +641,11 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         except ObservationDirError as e:
             logging.error("Science directory {} has a problem with the scienceFrameList or skyFrameList. Removing that directory from the list of directories to reduce.".format(science_directory), exc_info=True)
             scienceDirList = [x for x in scienceDirList if x != science_directory]
+        try:
+            checkStandardWavelength(science_directory)
+        except WavelengthError as e:
+            logging.error("Science directory {} has frames with a non-standard wavelength. Terminating.".format(science_directory), exc_info=True)
+            raise e
 
     # Check that telluric directory contains a non-empty skyFrameList and scienceFrameList.
     for telluric_directory in list(telDirList):
@@ -653,6 +658,11 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
             #logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Reductions involving that directory will be skipped.".format(telluric_directory), exc_info=True)
             #telDirList = [x for x in telDirList if x != telluric_directory]
             # For now, don't require sky frames for tellurics.
+        try:
+            checkStandardWavelength(telluric_directory)
+        except WavelengthError as e:
+            logging.error("Telluric directory {} has frames with a non-standard wavelength. Terminating.".format(science_directory), exc_info=True)
+            raise e
 
     #------------------------------ TESTS -------------------------------------#
 
@@ -1403,6 +1413,7 @@ class HeaderInfo(object):
             self.poff = header[0].header['POFFSET']
             self.qoff = header[0].header['QOFFSET']
             self.exptime = float(header[0].header['EXPTIME'])
+            self.crWav = float(header[0].header['GRATWAVE'])
         except Exception as e:
             logging.error("Error getting header info for frame {}.".format(frame))
             raise e
@@ -1621,6 +1632,24 @@ def getBasePathWithTimes(scienceDirList, framePath):
         raise e
 
     return basePath
+
+
+def checkStandardWavelength(observationDirectory):
+    frames = glob.glob(os.path.join(observationDirectory, "N20*"))
+    for frame in frames:
+        headers = HeaderInfo(frame)
+        
+        if ('Z' in headers.grat) and (abs(headers.crWav-1.05) > 0.01):
+            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
+        elif ('J' in headers.grat) and (abs(headers.crWav-1.25) > 0.01):
+            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
+        elif ('H' in headers.grat) and (abs(headers.crWav-1.65) > 0.01):
+            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
+        elif ('K' in headers.grat) and (abs(headers.crWav-2.20) > 0.01):
+            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
+        else:
+            raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
+
 
 #--------------------------- End of Functions ---------------------------------#
 

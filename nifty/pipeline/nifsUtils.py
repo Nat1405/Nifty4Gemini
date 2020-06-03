@@ -1291,6 +1291,8 @@ class ObservationDirError(Exception):
 class SkyFrameError(ObservationDirError):
     """Raised when there's a problem with the skyFrameList in a particular directory."""
 
+class WavelengthError(Exception):
+    """Raised when a non-standard wavelength is detected in the pipeline."""
 
 #-----------------------------------------------------------------------------#
 
