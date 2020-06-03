@@ -504,8 +504,8 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
                 os.mkdir(objDir+'/'+date+'/'+grat+'/obs'+obsid)
                 # If a new directory append time of science (or sky) frame and directory name to scienceDirList.
                 scienceDirList.append([[time], objDir+'/'+date+'/'+grat+'/obs'+obsid])
-            # Else if a new list or not a duplicate of the previous entry append time and directory name to scienceDirList.
-            elif not scienceDirList or not scienceDirList[-1][1]==objDir+'/'+date+'/'+grat+'/obs'+obsid:
+            # Else if a new list or not a duplicate append time and directory name to scienceDirList.
+            if not scienceDirList or not filter(lambda x: x[1] == objDir+'/'+date+'/'+grat+'/obs'+obsid, scienceDirList):
                 scienceDirList.append([[time], objDir+'/'+date+'/'+grat+'/obs'+obsid])
             # IF A DUPLICATE:
             # Append the time to an existing time list.
@@ -516,8 +516,9 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
             #
             # [[[5400,6500,7200], '/path/to/first/science'], [[5200, NEWTIMEHERE], '/path/to/second/science']]
 
-            elif scienceDirList[-1][1] == objDir+'/'+date+'/'+grat+'/obs'+obsid:
-                scienceDirList[-1][0].append(time)
+            else:
+                index = scienceDirList.index(filter(lambda x: x[1] == objDir+'/'+date+'/'+grat+'/obs'+obsid, scienceDirList)[0])
+                scienceDirList[index][0].append(time)
 
 
     # Copy science and acquisition frames to the appropriate directory.
@@ -602,7 +603,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
             if not os.path.exists(path_to_tellurics+'/Tellurics/obs'+obsid):
                 os.mkdir(path_to_tellurics+'/Tellurics/obs'+obsid)
                 telDirList.append(path_to_tellurics+'/Tellurics/obs'+obsid)
-            elif not telDirList or not telDirList[-1]==path_to_tellurics+'/Tellurics/obs'+obsid:
+            if not telDirList or not path_to_tellurics+'/Tellurics/obs'+obsid in telDirList:
                 telDirList.append(path_to_tellurics+'/Tellurics/obs'+obsid)
             shutil.copy(rawPath+'/'+allfilelist[i][0], path_to_tellurics+'/Tellurics/obs'+obsid+'/')
             number_files_that_were_copied += 1
