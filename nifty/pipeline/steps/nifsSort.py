@@ -1056,10 +1056,15 @@ def matchTellurics(telDirList, obsDirList, telluricTimeThreshold):
 
         for science_frame in science_frame_paths:
 
-            telluric_frame = matchScienceTelluric(science_frame, telluric_frame_paths)
+            try:
+                telluric_frame = matchScienceTelluric(science_frame, telluric_frame_paths)
+            except TelluricsNotFoundError as e:
+                logging.error("Telluric frame not found for science frame {}. A possible solution is to raise the telluricTimeThreshold in the config file (it is currently {} seconds).".format(science_frame, telluricTimeThreshold))
+                raise e
+
 
             if abs(timeCalc(telluric_frame) - timeCalc(science_frame)) > telluricTimeThreshold:
-                raise TelluricsNotFoundError("The closest telluric frame in time ({}) for science frame {} has a calculated time delta of {} seconds. This is over the allowed telluric time threshold of {} seconds specified in the config file. Terminating.".format(science_frame, telluric_frame, abs(timeCalc(telluric_frame) - timeCalc(science_frame)), telluricTimeThreshold))
+                raise TelluricsNotFoundError("The closest telluric frame in time ({}) for science frame {} has a calculated time delta of {} seconds. This is over the allowed telluric time threshold of {} seconds specified in the config file.".format(science_frame, telluric_frame, abs(timeCalc(telluric_frame) - timeCalc(science_frame)), telluricTimeThreshold))
 
             appendToscienceMatchedTellsList(science_frame, telluric_frame)
 
@@ -1165,6 +1170,8 @@ def matchScienceTelluric(science_frame_path, telluric_frame_paths):
         logging.error("timeCalc seems to have failed on a frame. One example is {}. Terminating.".format(telluric_frame_paths[0]))
 
     # Find closest telluric frame in time.
+    if len(zip(telluric_time_deltas, telluric_frame_paths)) == 0:
+        raise TelluricsNotFoundError()
 
     return sorted(zip(telluric_time_deltas, telluric_frame_paths))[0][1]
 
