@@ -224,6 +224,7 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
 
     if len(obsDirList) == 0:
         logging.warning("NifsMerge called with an empty list of directories to look for cubes. Exiting.")
+        os.chdir(path)
         return
 
     # TODO(nat): This code seems to work really well, but it could use some polishing. Feel free to refactor nicely!
@@ -278,6 +279,7 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
                 logging.info("Output exists and -over- not set - shifted cubes are not being merged")
             shutil.copy('./'+obsid+'_merged.fits', Merged)
             if obsDir==obsDirList[-1]:
+                os.chdir(path)
                 return
             else:
                 continue
@@ -294,6 +296,7 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
             else:
                 logging.info("Warning: no uncorrected cubes found in " + str(os.getcwd()))
                 logging.info("Skipping cube merging in this directory.")
+                os.chdir(path)
                 return
         elif cubeType == "telluricCorrected":
             cubes = glob.glob('actfbrsnN*.fits')
@@ -303,6 +306,7 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
             else:
                 logging.info("Warning: no telluric corrected cubes found in " + str(os.getcwd()))
                 logging.info("Skipping cube merging in this directory.")
+                os.chdir(path)
                 return
         elif cubeType == "telCorAndFluxCalibrated":
             cubes = glob.glob('factfbrsnN*.fits')
@@ -312,9 +316,11 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
             else:
                 logging.info("Warning: no flux calibrated and telluric corrected cubes found in " + str(os.getcwd()))
                 logging.info("Skipping cube merging in this directory.")
+                os.chdir(path)
                 return
         else:
             logging.info("Invalid cube type; skipping cube merge for " + str(os.getcwd()))
+            os.chdir(path)
             return
         # Copy cubes to their respective data_obsid directory within Merged.
         for cube in cubes:

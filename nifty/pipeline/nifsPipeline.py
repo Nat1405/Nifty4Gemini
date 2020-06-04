@@ -221,7 +221,6 @@ def start(args):
 
     if config['nifsPipelineConfig']['merge']:
         nifsMerge.run()
-        config = reloadConfig()
 
     ###########################################################################
     ##                    Data Reduction Complete!                           ##
