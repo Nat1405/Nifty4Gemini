@@ -316,7 +316,10 @@ def makePythonLists(rawPath, skyThreshold):
         objname = re.sub('[^a-zA-Z0-9\n\.]', '', objname)
         poff = header[0].header['POFFSET']
         qoff = header[0].header['QOFFSET']
-        exptime = float(header[0].header['EXPTIME'])
+        try:
+            exptime = float(header[0].header['EXPTIME'])
+        except KeyError:
+            logging.warning("EXPTIME keyword missing for a frame, frame {} will not be used.".format(entry))
 
         # Make a list of science, telluric and acquisition frames.
         # Use the copied variable (1 not copied, 0 copied) to check later that
