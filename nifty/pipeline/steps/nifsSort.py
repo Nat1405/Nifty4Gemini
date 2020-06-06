@@ -50,7 +50,7 @@ from ..configobj.configobj import ConfigObj
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
 rewriteSciImageList, datefmt, downloadQueryCadc, CalibrationsNotFoundError, CalibrationsError, TelluricsNotFoundError, \
-ScienceObservationError, SkyFrameError, ObservationDirError, WavelengthError
+ScienceObservationError, SkyFrameError, ObservationDirError, WavelengthError, checkForMDFiles
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -150,6 +150,8 @@ def start():
             logging.info('\nDownloading data from the CADC archive to ./rawData. This will take a few minutes.')
             query = "SELECT observationID, publisherID, productID FROM caom2.Observation AS o JOIN caom2.Plane AS p ON o.obsID=p.obsID WHERE instrument_name='NIFS' AND proposal_id={}".format("'" + program + "'")
             downloadQueryCadc(query, os.getcwd()+'/rawData')
+            json_query = "https://archive.gemini.edu/jsonsummary/not_site_monitoring/NotFail/{}/notengineering/canonical/present".format(program)
+            checkForMDFiles(os.path.join(os.getcwd(), 'rawData'), json_query)
         elif dataSource == 'GSA':
             if proprietaryCookie:
                 download_query_gemini(program, './rawData', proprietaryCookie)

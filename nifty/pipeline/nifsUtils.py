@@ -1268,6 +1268,34 @@ def writeWithTempFile(request, filename):
 
     return filename
 
+
+def checkForMDFiles(path, query):
+    """
+    Gemini sometimes attaches an "-md!" prefix to their files to indicate there's
+    some sort of metadata problem with them. The CADC archive doesn't currently
+    contain that information, but it can be queried from the Gemini Science Archive.
+    """
+    try:
+        # This abuses getFile because (currently) if the content-disposition header isn't found it
+        # uses a hard-coded part of the url as the filename (which makes no sense here). However,
+        # it doesn't seem as if that should break things.
+        json_filename = getFile(query)
+    except Exception:
+        logging.warning("MD Report check failed. Some fits files with broken metadata may have made it through.")
+        return
+
+    with open(json_filename) as f:
+        data = json.load(f)
+    for item in data:
+        try:
+            if not item['mdready']:
+                # Do some sort of removal of the actual fits file here
+                fits_filename = item['filename'].rstrip('.bz2')
+                if os.path.exists(os.path.join(path, fits_filename)):
+                    os.remove(os.path.join(path, fits_filename))
+        except Exception:
+            continue
+
 class CalibrationsError(Exception):
     """General error for tasks while getting calibrations."""
 
