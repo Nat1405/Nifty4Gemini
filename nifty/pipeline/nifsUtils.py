@@ -31,7 +31,7 @@ if sys_pf == 'darwin':
     import matplotlib
     matplotlib.use("TkAgg")
 
-import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib, tempfile
+import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib, tempfile, json
 import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
