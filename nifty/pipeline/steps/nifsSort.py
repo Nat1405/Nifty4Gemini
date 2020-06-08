@@ -127,7 +127,11 @@ def start():
         sortConfig = options['sortConfig']
         rawPath = sortConfig['rawPath']
         program = sortConfig['program']
-        dataSource = sortConfig['dataSource']
+        # Backwards compatability with old config files
+        try:
+            dataSource = sortConfig['dataSource']
+        except KeyError:
+            dataSource = 'GSA'
         proprietaryCookie = sortConfig['proprietaryCookie']
         skyThreshold = sortConfig['skyThreshold']
         sortTellurics = sortConfig['sortTellurics']
