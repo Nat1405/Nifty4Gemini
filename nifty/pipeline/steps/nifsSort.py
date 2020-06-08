@@ -1334,10 +1334,18 @@ def rewriteCalibrationList(list_name):
                     writeList(frame, 'arclist', os.getcwd())
                     count += 1
     elif list_name == 'arcdarklist':
+        # First open the list of arcs to get exptimes of them
+        try:
+            with open('arclist') as f:
+                lines = f.readlines()
+                frames = [x.rstrip('\n')+'.fits' for x in frames]
+            arc_exp_times = [HeaderInfo(frame).exptime for frame in frames]
+        except Exception:
+            arc_exp_times = None
         with open('arcdarklist', 'w') as f:
             for frame in frames:
                 headers = HeaderInfo(frame)
-                if isArcDark(headers.obstype, headers.exptime):
+                if isArcDark(headers.obstype, headers.exptime, arc_exp_times):
                     writeList(frame, 'arcdarklist', os.getcwd())
                     count += 1
     elif list_name == 'flatdarklist':
