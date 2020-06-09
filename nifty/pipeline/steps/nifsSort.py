@@ -322,6 +322,7 @@ def makePythonLists(rawPath, skyThreshold):
             exptime = float(header[0].header['EXPTIME'])
         except KeyError:
             logging.warning("EXPTIME keyword missing for a frame, frame {} will not be used.".format(entry))
+            continue
 
         # Make a list of science, telluric and acquisition frames.
         # Use the copied variable (1 not copied, 0 copied) to check later that
