@@ -309,7 +309,7 @@ def makePythonLists(rawPath, skyThreshold):
             # Only grab frames belonging to NIFS raw data!
             continue
         obstype = header[0].header['OBSTYPE'].strip()
-        ID = header[0].header['OBSID']
+        ID = header[0].header['OBSID'].split('-')[-1]
         date = header[0].header[ 'DATE'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
         aper = header[0].header['APERTURE']
@@ -484,7 +484,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         header = astropy.io.fits.open(rawPath+'/'+entry[0])
 
         obstype = header[0].header['OBSTYPE'].strip()
-        obsid = header[0].header['OBSID'][-3:].replace('-','')
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grat = header[0].header['GRATING'][0:1]
         date = header[0].header[ 'DATE'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
@@ -533,7 +533,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         header = astropy.io.fits.open(rawPath+'/'+allfilelist[i][0])
 
         obstype = header[0].header['OBSTYPE'].strip()
-        obsid = header[0].header['OBSID'][-3:].replace('-','')
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grat = header[0].header['GRATING'][0:1]
         date = header[0].header[ 'DATE'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
@@ -583,7 +583,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         header = astropy.io.fits.open(rawPath+'/'+allfilelist[i][0])
 
         obstype = header[0].header['OBSTYPE'].strip()
-        obsid = header[0].header['OBSID'][-3:].replace('-','')
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grat = header[0].header['GRATING'][0:1]
         date = header[0].header[ 'DATE'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
@@ -821,7 +821,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
     grating_warning_flag = False
     for i in range(len(flatlist)):
         header = astropy.io.fits.open(flatlist[i][0])
-        obsid = header[0].header['OBSID']
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grating = header[0].header['GRATING'][0:1]
         if grating not in ["K", "J", "H", "Z"]:
             logging.info("\n#####################################################################")
@@ -864,7 +864,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
     for i in range(len(flatdarklist)):
         os.chdir(rawPath)
         header = astropy.io.fits.open(flatdarklist[i][0])
-        obsid = header[0].header['OBSID']
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grating = header[0].header['GRATING'][0:1]
         for objDir in objDirList:
             for item in obsidDateList:
@@ -886,7 +886,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
     for i in range(len(ronchilist)):
         os.chdir(rawPath)
         header = astropy.io.fits.open(ronchilist[i][0])
-        obsid = header[0].header['OBSID']
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grating = header[0].header['GRATING'][0:1]
         for objDir in objDirList:
             for item in obsidDateList:
@@ -925,7 +925,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
     logging.info("\nSorting arc darks:")
     for i in range(len(arcdarklist)):
         header = astropy.io.fits.open(arcdarklist[i][0])
-        obsid = header[0].header['OBSID']
+        obsid = header[0].header['OBSID'].split('-')[-1]
         grating = header[0].header['GRATING'][0:1]
         for objDir in objDirList:
             for item in obsidDateList:
@@ -1423,7 +1423,7 @@ class HeaderInfo(object):
                 # Only grab frames belonging to NIFS raw data!
                 raise ValueError("Data isn't from NIFS!")
             self.obstype = header[0].header['OBSTYPE'].strip()
-            self.ID = header[0].header['OBSID']
+            self.ID = header[0].header['OBSID'].split('-')[-1]
             self.grat = header[0].header['GRATING'][0:1]
             self.date = header[0].header[ 'DATE'].replace('-','')
             self.obsclass = header[0].header['OBSCLASS']
@@ -1452,7 +1452,7 @@ def checkCalibrationsPresent(rawPath, science_frame, flatlist, flatdarklist, arc
     header = astropy.io.fits.open(rawPath+'/'+science_frame)
 
     obstype = header[0].header['OBSTYPE'].strip()
-    obsid = header[0].header['OBSID'][-3:].replace('-','')
+    obsid = header[0].header['OBSID'].split('-')[-1]
     grat = header[0].header['GRATING'][0:1]
     date = header[0].header[ 'DATE'].replace('-','')
     obsclass = header[0].header['OBSCLASS']
