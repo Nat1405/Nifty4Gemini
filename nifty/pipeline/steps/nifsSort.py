@@ -659,12 +659,12 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         try:
             makeSkyLists(telluric_directory, skyThreshold, science=False)
             checkSkyFrameDivision(telluric_directory, science=False)
-        except ObservationDirError as e:
+        except SkyFrameError as e:
             logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction for all telluric observations.".format(telluric_directory))
             turnOffTelluricSkySub()
-            #logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Reductions involving that directory will be skipped.".format(telluric_directory), exc_info=True)
-            #telDirList = [x for x in telDirList if x != telluric_directory]
-            # For now, don't require sky frames for tellurics.
+        except ObservationDirError as e:
+            logging.error("Telluric observation directory {} has a problem with the tellist or skyFrameList. Removing that directory from the list of directories to reduce.".format(telluric_directory), exc_info=True)
+            telDirList = [x for x in telDirList if x != telluric_directory]
         try:
             checkStandardWavelength(telluric_directory)
         except WavelengthError as e:
