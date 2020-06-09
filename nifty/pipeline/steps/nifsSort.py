@@ -1004,6 +1004,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
         try:
             checkCalibrationsPresent(rawPath, science_frame, flatlist, flatdarklist, arclist, arcdarklist, ronchilist, dataSource)
         except CalibrationsError:
+            os.chdir(path1)
             logging.error("Calibrations not found for science frame {}. Unmarking all affected science and telluric telluric directories for reduction.".format(science_frame), exc_info=True)
             scienceDirectoryList, telluricDirectoryList, calDirList = removeAffectedDirectories(os.path.join(rawPath, science_frame), scienceDirectoryList, telluricDirectoryList, calDirList)
         os.chdir(path1)
@@ -1545,8 +1546,8 @@ def removeAffectedDirectories(science_frame_absolute, scienceDirectoryList, tell
     """
     headers = HeaderInfo(science_frame_absolute)
 
-    tells_and_science_path = os.path.join(os.path.split(os.getcwd())[0], headers.grat)
-    calibrations_path = os.getcwd()
+    tells_and_science_path = os.path.join(os.getcwd(), headers.objname, headers.date, headers.grat)
+    calibrations_path = os.path.join(os.getcwd(), headers.objname, headers.date, 'Calibrations_'+headers.grat)
 
     # Remove science and telluric observation directories
     scienceDirectoryList = [x for x in scienceDirectoryList if tells_and_science_path not in x]
