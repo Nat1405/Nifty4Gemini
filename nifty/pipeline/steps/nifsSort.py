@@ -859,7 +859,7 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
                                 # Create a text file called flatlist to store the names of the
                                 # lamps on flats for later use by the pipeline.
                                 writeList(flatlist[i][0], 'flatlist', path)
-
+    import pdb; pdb.set_trace()
     # Sort lamps off flats.
     logging.info("\nSorting lamps off flats:")
     for i in range(len(flatdarklist)):
@@ -874,6 +874,8 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
                     if date in objDir:
                         if not os.path.exists(objDir+'/Calibrations_'+grating):
                             os.mkdir(objDir+'/Calibrations_'+grating)
+                        if objDir+'/Calibrations_'+grating not in calDirList:
+                            calDirList.append(objDir+'/Calibrations_'+grating)
                         shutil.copy('./'+flatdarklist[i][0], objDir+'/Calibrations_'+grating+'/')
                         flatdarklist[i][1] = 0
                         logging.info(flatdarklist[i][0])
@@ -896,6 +898,8 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
                     if date in objDir:
                         if not os.path.exists(objDir+'/Calibrations_'+grating):
                             os.mkdir(objDir+'/Calibrations_'+grating)
+                        if objDir+'/Calibrations_'+grating not in calDirList:
+                            calDirList.append(objDir+'/Calibrations_'+grating)
                         shutil.copy('./'+ronchilist[i][0], objDir+'/Calibrations_'+grating+'/')
                         ronchilist[i][1] = 0
                         logging.info(ronchilist[i][0])
@@ -914,6 +918,8 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
             if date in objDir:
                 if not os.path.exists(objDir+'/Calibrations_'+grating):
                     os.mkdir(objDir+'/Calibrations_'+grating)
+                if objDir+'/Calibrations_'+grating not in calDirList:
+                    calDirList.append(objDir+'/Calibrations_'+grating)
                 shutil.copy('./'+arclist[i][0], objDir+'/Calibrations_'+grating+'/')
                 arclist[i][1] = 0
                 logging.info(arclist[i][0])
@@ -935,6 +941,8 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
                     if date in objDir:
                         if not os.path.exists(objDir+'/Calibrations_'+grating):
                             os.mkdir(objDir+'/Calibrations_'+grating)
+                        if objDir+'/Calibrations_'+grating not in calDirList:
+                            calDirList.append(objDir+'/Calibrations_'+grating)
                         shutil.copy('./'+arcdarklist[i][0], objDir+'/Calibrations_'+grating+'/')
                         arcdarklist[i][1] = 0
                         logging.info(arcdarklist[i][0])
@@ -1464,18 +1472,12 @@ def checkCalibrationsPresent(rawPath, science_frame, flatlist, flatdarklist, arc
     # a science and Calibrations directory are present.
     try:
         os.chdir(os.getcwd()+'/'+obj+'/'+date+'/'+grat+'/obs'+obsid+'/')
+    except OSError:
+        raise CalibrationsNotFoundError("A science observation directory was supposed to exist in {} but wasn't found.".format(os.path.join(os.getcwd(), obj, date, grat, 'obs'+obsid)))
+    try:
         os.chdir('../../Calibrations_'+grat+'/')
     except OSError as e:
-        logging.info("\n#####################################################################")
-        logging.info("#####################################################################")
-        logging.info("")
-        logging.info("     WARNING in sort: no Calibrations directory found for ")
-        logging.info("                      science frame "+str(science_frame))
-        logging.info("")
-        logging.info("#####################################################################")
-        logging.info("#####################################################################\n")
-        raise CalibrationsNotFoundError("Calibrations directory not found in {}.".format(os.path.join(os.getcwd(), obj, date, grat, 'obs'+obsid)))
-
+        os.mkdir('../../Calibrations_'+grat+'/')
     try:
         checkListExists(science_frame, flatlist, 'flatlist', 'lamps on flat', rawPath)
     except RuntimeError as e_list:
