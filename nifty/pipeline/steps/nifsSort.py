@@ -658,6 +658,10 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
     for telluric_directory in list(telDirList):
         try:
             makeSkyLists(telluric_directory, skyThreshold, science=False)
+        except SkyFrameError as e:
+            logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction for all telluric observations.".format(telluric_directory))
+            turnOffTelluricSkySub()
+        try:
             checkSkyFrameDivision(telluric_directory, science=False)
         except SkyFrameError as e:
             logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction for all telluric observations.".format(telluric_directory))
