@@ -859,7 +859,6 @@ def sortCalibrations(arcdarklist, arclist, flatlist, flatdarklist, ronchilist, o
                                 # Create a text file called flatlist to store the names of the
                                 # lamps on flats for later use by the pipeline.
                                 writeList(flatlist[i][0], 'flatlist', path)
-    import pdb; pdb.set_trace()
     # Sort lamps off flats.
     logging.info("\nSorting lamps off flats:")
     for i in range(len(flatdarklist)):
