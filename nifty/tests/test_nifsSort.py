@@ -4,6 +4,9 @@ import logging
 import json
 import glob
 from pathlib import Path
+import requests
+import tarfile
+import shutil
 
 import pytest
 # try:
@@ -32,8 +35,25 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
     return os.path.join(data_dir, filename)
 
-def test_makePythonLists_one_day():
-    allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = nifsSort.makePythonLists(data_path("GN-2014A-Q-85_one_day"), 2.0)
+def download_test_data(path):
+    r = requests.get("https://github.com/nat1405/NiftyTestData/archive/master.tar.gz")
+    with open("NiftyTestData.tar.gz", 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=128):
+            fd.write(chunk)
+    tar = tarfile.open("NiftyTestData.tar.gz")
+    tar.extractall()
+    tar.close()
+    shutil.move(os.path.join(os.getcwd(), "NiftyTestData-master", "GN-2014A-Q-85-all"), data_path("GN-2014A-Q-85-all"))
+    os.mkdir(data_path("GN-2014A-Q-85_one_day"))
+    for frame in glob.glob(os.path.join(data_path("GN-2014A-Q-85-all"), "N20140428*")):
+        shutil.copy(frame, data_path("GN-2014A-Q-85_one_day"))
+
+def test_makePythonLists_one_day(tmpdir):
+    tmpdir = str(tmpdir)
+    rawPath = data_path("GN-2014A-Q-85_one_day")
+    if not os.path.exists(rawPath):
+        download_test_data(tmpdir)
+    allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = nifsSort.makePythonLists(rawPath, 2.0)
 
     result_list = ["N20140428S00"+str(i)+'.fits' for i in range(67,94)]
     result_list.remove("N20140428S0085.fits")
@@ -199,6 +219,8 @@ def test_sortScienceAndTelluric(tmpdir, monkeypatch):
 
     skyThreshold = 1.5
     rawPath = data_path('GN-2014A-Q-85-all')
+    if not os.path.exists(rawPath):
+        download_test_data()
 
     objDirList, scienceDirectoryList, telluricDirectoryList = nifsSort.sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold)
 
