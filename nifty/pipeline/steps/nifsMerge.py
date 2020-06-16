@@ -30,7 +30,7 @@ if sys_pf == 'darwin':
 import getopt
 import os, glob, shutil, logging, pkg_resources, json
 import pexpect as p
-import time
+import time, re
 from pyraf import iraf
 from pyraf import iraffunctions
 import astropy.io.fits
@@ -40,6 +40,7 @@ import numpy
 
 # Import config parsing.
 from ..configobj.configobj import ConfigObj
+from ..nifsUtils import HeaderInfo, WavelengthError
 
 # Define constants
 # Paths to Nifty data.
@@ -108,7 +109,7 @@ def run():
 
         if valindex == 2:
             # Merge merged cubes from each observation.
-            finalMergeCubes(mergeType, over)
+            finalMergeCubes(mergeType, "uncorrected", scienceDirectoryList, over)
             logging.info("\n##############################################################################")
             logging.info("")
             logging.info("  STEP 2 - Merge Uncorrected Merged Observation Cubes - COMPLETED ")
@@ -126,7 +127,7 @@ def run():
 
         if valindex == 4:
             # Merge merged cubes from each observation.
-            finalMergeCubes(mergeType, over)
+            finalMergeCubes(mergeType, "telluricCorrected", scienceDirectoryList, over)
             logging.info("\n##############################################################################")
             logging.info("")
             logging.info("  STEP 4 - Merge Telluric Corrected Merged Observation Cubes - COMPLETED ")
@@ -144,7 +145,7 @@ def run():
 
         if valindex == 6:
             # Merge merged cubes from each observation.
-            finalMergeCubes(mergeType, over)
+            finalMergeCubes(mergeType, "telCorAndFluxCalibrated", scienceDirectoryList, over)
             logging.info("\n##############################################################################")
             logging.info("")
             logging.info("  STEP 6 - Merge Telluric Corrected AND Flux Calibrated Cubes - COMPLETED ")
@@ -453,7 +454,7 @@ def mergeCubes(obsDirList, cubeType, mergeType, use_pq_offsets, im3dtran, over="
         json.dump(mergedData, outfile)
 
 
-def finalMergeCubes(mergeType, over):
+def old_finalMergeCubes(mergeType, over):
     """
     Merge final merged cubes from all observations.
     """
@@ -476,7 +477,7 @@ def finalMergeCubes(mergeType, over):
             cubeheader = astropy.io.fits.open(mergedCubes[i])
             grat = cubeheader[0].header['GRATING']
             gratlist.append(grat)
-        print "gratlist is: ", gratlist
+        print("gratlist is: {}".format(gratlist))
         # TODO(nat): right now we do more final merges here than we have to. Eg, if there are three H
         # grating directories in gratlist, we will do a final merge three times. We should only be doing this once!
         # Right now it is only a problem when overwrite is turned on but it should still be fixed.
@@ -486,7 +487,7 @@ def finalMergeCubes(mergeType, over):
             newcubelist = []
             for ind in indices:
                 newcubelist.append(mergedCubes[ind])
-            print newcubelist
+            print(newcubelist)
             # Do some housekeeping before the final cube merging.
             resizeAndCenterCubes(newcubelist, over)
             makeWavelengthOffsets(newcubelist, grat)
@@ -507,6 +508,204 @@ def finalMergeCubes(mergeType, over):
                 iraf.imcombine(inputstring, output = 'temp_merged'+gratlist[n][0]+'.fits', combine = mergeType, offsets = 'waveoffsets'+grat[0]+'.txt')
                 iraf.fxcopy(input=newcubelist[0]+'[0], temp_merged'+gratlist[n][0]+'.fits', output = 'TOTAL_merged'+gratlist[n][0]+'.fits')
     os.chdir(path)
+
+
+def finalMergeCubes(mergeType, cubeType, scienceDirectoryList, over=""):
+    """
+    """
+    mergedDirs = findMergeDirs(cubeType, scienceDirectoryList)
+
+    for mergeDir in mergedDirs:
+        for grating in ['K', 'H', 'J', 'Z']:
+            try:
+                cubes = findCubes(mergeDir, grating, cubeType)
+            except WavelengthError:
+                continue
+            if len(cubes) >= 1:
+                tmp_merge_path = os.path.join(mergeDir, "total_merge_products_"+grating)
+                if os.path.exists(tmp_merge_path):
+                    if over:
+                        os.remove(tmp_merge_path)
+                        os.mkdir(tmp_merge_path)
+                    else:
+                        logging.info('Output exists and -over- not set - skipping final cube merge in {}.'.format(mergeDir))
+                        continue
+                else:
+                    os.mkdir(tmp_merge_path)
+                for cube in cubes:
+                    shutil.copy(cube, tmp_merge_path)
+                mergeCubesInDir(tmp_merge_path, mergeType, over)
+
+def findMergeDirs(cubeType, scienceDirectoryList):
+    """
+    Parse scienceDirectoryList to find merged directories.
+    """
+    mergeDirs = []
+    for scienceDir in scienceDirectoryList:
+        basePath = os.path.sep.join(scienceDir.split(os.path.sep)[:-3])
+        if os.path.exists(os.path.join(basePath, "Merged_"+cubeType)) and os.path.join(basePath, "Merged_"+cubeType) not in mergeDirs:
+            mergeDirs.append(os.path.join(basePath, "Merged_"+cubeType))
+    return mergeDirs
+
+
+def findCubes(mergeDir, grating, cubeType):
+    if cubeType == "uncorrected":
+        cubes = glob.glob(os.path.join(mergeDir, "*", "ctfbrsn*"))
+    elif cubeType == "telluricCorrected":
+        cubes = glob.glob(os.path.join(mergeDir, "*", "actfbrsn*"))
+    elif cubeType == "telCorAndFluxCalibrated":
+        cubes = glob.glob(os.path.join(mergeDir, "*", "factfbrsn*"))
+
+    cubes = [cube for cube in cubes if HeaderInfo(cube).grat == grating]
+
+    if len(cubes) == 0:
+        return cubes
+
+    try:
+        crWav0 = HeaderInfo(cubes[0]).crWav
+        assert all([abs(HeaderInfo(cube).crWav - crWav0) < 0.01 for cube in cubes])
+    except AssertionError:
+        logging.error("Cubes in {} didn't all have the same central wavelength! Skipping merge in this directory.".format(mergeDir))
+        raise WavelengthError()
+
+    return cubes
+
+def mergeCubesInDir(tmp_merge_path, mergeType, over):
+    path = os.getcwd()
+
+    os.chdir(tmp_merge_path)
+    iraffunctions.chdir(tmp_merge_path)
+
+    cubes = glob.glob("*")
+
+    cubes = makeOffsets(cubes)
+
+    if len(cubes) == 0:
+        return
+
+    for cube in cubes:
+        if os.path.exists('t'+cube):
+            if over:
+                os.remove('t'+cube)
+                iraf.im3dtran(input = cube+'[SCI][*,*,-*]', new_x=1, new_y=3, new_z=2, output = 't'+cube)
+            else:
+                logging.info('Output exists and -over- not set - skipping transpose of {}.'.format(cube))
+        else:
+            iraf.im3dtran(input = cube+'[SCI][*,*,-*]', new_x=1, new_y=3, new_z=2, output = 't'+cube)
+    
+    if os.path.exists('temp_merged.fits'):
+        if over:
+            os.remove('temp_merged.fits')
+            iraf.imcombine(",".join(['t'+cube for cube in cubes]), output = 'temp_merged.fits', combine = mergeType, offsets = 'offsets.txt')
+        else:
+            logging.info('Output exists and -over- not set - skipping temp merge of {}.'.format(cubes))
+    else:
+        iraf.imcombine(",".join(['t'+cube for cube in cubes]), output = 'temp_merged.fits', combine = mergeType, offsets = 'offsets.txt')
+
+    if os.path.exists('TOTAL_merged.fits'):
+        if over:
+            os.remove('TOTAL_merged.fits')
+            iraf.im3dtran(input='temp_merged[*,-*,*]', new_x=1, new_y=3, new_z=2, output = 'TOTAL_merged.fits')
+        else:
+            logging.info('Output exists and -over- not set - skipping final merge of {}.'.format(cubes))
+    else:
+        iraf.im3dtran(input='temp_merged[*,-*,*]', new_x=1, new_y=3, new_z=2, output = 'TOTAL_merged.fits')
+    os.chdir(path)
+
+
+def makeOffsets(frames, pixScale=0.05, outfile='offsets.txt', im3dtran=True, over=False):
+    """
+    Inputs:
+        frames: list of absolute paths to frames.
+
+    Returns:
+        frames: list of frames that were able to have their offsets created. May have length 0 or 1; if so, won't have written an offsets.txt file.
+    """
+
+    if os.path.exists(outfile) and not over:
+        logging.info("{} exists and over not set; skipping creation of an offsets file.".format(outfile))
+        return frames
+
+    frames = [frame for frame in frames if checkPQHeader(frame)]
+    
+    if len(frames) == 0:
+        logging.info("Number of usable cubes found was {}. Skipping creating of {}.".format(len(frames), outfile))
+        return frames
+
+    if len(frames) == 1:
+        with open(outfile, 'w') as f:
+            f.write("0 0 0\n")
+        return frames
+
+    # Make sure frames have same wavelength increment
+    wdelt0 = astropy.io.fits.open(frames[0])[1].header['CD3_3']
+    try:
+        assert all([abs(astropy.io.fits.open(frame)[1].header['CD3_3'] - wdelt0) < 0.001 for frame in frames])
+    except AssertionError:
+        logging.warning("Cubes do not all have the same wavelength increment. Skipping creation of {}. Cubes:".format(outfile))
+        for frame in frames:
+            logging.warning("{}".format(frame))
+        return []
+
+    frame_headers = [HeaderInfo(frame) for frame in frames]
+
+    try:
+        assert len(frame_headers) > 1
+        assert len(frame_headers) == len(frames)
+    except AssertionError:
+        logging.warning("There was a problem with cube headers. Skipping creating of {}.".format(outfile))
+        return []
+
+    p_offs = [float(HeaderInfo(frame).poff) for frame in frames]
+    q_offs = [float(HeaderInfo(frame).qoff) for frame in frames]
+
+    min_p = min(p_offs)
+    max_p = max(p_offs)
+    width_p = max_p - min_p
+
+    min_q = min(q_offs)
+    max_q = max(q_offs)
+    width_q = max_q - min_q
+
+    cubeheader = astropy.io.fits.open(frames[0])
+    wstart0 = cubeheader[1].header['CRVAL3']
+    wdelt0 = cubeheader[1].header['CD3_3']
+
+    for i in range(len(frame_headers)):
+        if frame_headers[i].ALTAIR:
+            xShift = round((width_p - float(frame_headers[i].poff))/pixScale)
+        else:
+            xShift = round(-1*(width_p - float(frame_headers[i].poff))/pixScale)
+        yShift = round((width_q + float(frame_headers[i].qoff))/pixScale)
+        
+        cubeheader = astropy.io.fits.open(frames[i])
+        wstart = cubeheader[1].header['CRVAL3']
+        wdelt = cubeheader[1].header['CD3_3']
+        waveoff = round((wstart-wstart0)/wdelt)
+        # write all offsets to a text file (keep in mind that the x and y offsets use different pixel scales)
+        with open(outfile, 'a') as f:
+            if im3dtran:
+                # If we swap the y and lambda axis we must also write the offsets in x, lambda, y.
+                f.write('%d %d %d\n' % (xShift, waveoff, yShift))
+            else:
+                # Write offsets in regular x, y, lambda.
+                f.write('%d %d %d\n' % (int(xShift), int(yShift), waveoff))
+
+    return frames
+
+
+def checkPQHeader(frame):
+    try:
+        headers = HeaderInfo(frame)
+        poff = float(headers.poff)
+        qoff = float(headers.qoff)
+        cubeheader = astropy.io.fits.open(frame)
+        wstart0 = float(cubeheader[1].header['CRVAL3'])
+        wdelt0 = float(cubeheader[1].header['CD3_3'])
+        return True
+    except Exception:
+        logging.info("Problem with the headers of frame {}. Excluding that frame from future processing.".format(frame))
+        return False
 
 #####################################################################################
 #                                        FUNCTIONS                                  #

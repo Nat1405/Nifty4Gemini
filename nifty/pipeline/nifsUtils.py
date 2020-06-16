@@ -1345,6 +1345,7 @@ class HeaderInfo(object):
             self.qoff = header[0].header['QOFFSET']
             self.exptime = float(header[0].header['EXPTIME'])
             self.crWav = float(header[0].header['GRATWAVE'])
+            self.ALTAIR = (header[0].header['AOFOLD'].strip() == 'IN')
         except Exception as e:
             logging.error("Error getting header info for frame {}.".format(frame))
             raise e
