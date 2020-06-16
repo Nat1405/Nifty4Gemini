@@ -310,7 +310,7 @@ def makePythonLists(rawPath, skyThreshold):
             continue
         obstype = header[0].header['OBSTYPE'].strip()
         ID = header[0].header['OBSID'].split('-')[-1]
-        date = header[0].header[ 'DATE'].replace('-','')
+        date = header[0].header['DATE-OBS'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
         aper = header[0].header['APERTURE']
         # If object name isn't alphanumeric, make it alphanumeric.
@@ -464,7 +464,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         objname = header[0].header['OBJECT']
         objname = re.sub('[^a-zA-Z0-9\n\.]', '', objname)
         obsclass = header[0].header['OBSCLASS']
-        date = header[0].header[ 'DATE'].replace('-','')
+        date = header[0].header['DATE-OBS'].replace('-','')
 
         if obsclass=='science':
             if not os.path.exists(path+'/'+objname):
@@ -487,7 +487,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         obstype = header[0].header['OBSTYPE'].strip()
         obsid = header[0].header['OBSID'].split('-')[-1]
         grat = header[0].header['GRATING'][0:1]
-        date = header[0].header[ 'DATE'].replace('-','')
+        date = header[0].header['DATE-OBS'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
         obj = header[0].header['OBJECT']
         obj = re.sub('[^a-zA-Z0-9\n\.]', '', obj)
@@ -536,7 +536,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         obstype = header[0].header['OBSTYPE'].strip()
         obsid = header[0].header['OBSID'].split('-')[-1]
         grat = header[0].header['GRATING'][0:1]
-        date = header[0].header[ 'DATE'].replace('-','')
+        date = header[0].header['DATE-OBS'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
         obj = header[0].header['OBJECT']
         obj = re.sub('[^a-zA-Z0-9\n\.]', '', obj)
@@ -586,7 +586,7 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
         obstype = header[0].header['OBSTYPE'].strip()
         obsid = header[0].header['OBSID'].split('-')[-1]
         grat = header[0].header['GRATING'][0:1]
-        date = header[0].header[ 'DATE'].replace('-','')
+        date = header[0].header['DATE-OBS'].replace('-','')
         obsclass = header[0].header['OBSCLASS']
         obj = header[0].header['OBJECT']
         obj = re.sub('[^a-zA-Z0-9\n\.]', '', obj)
@@ -1264,7 +1264,7 @@ def checkListExists(science_frame, in_list, list_name, list_description, rawPath
         # Loop through in_list and see if there is a frame taken on this date, optionally checking that exposure times match
         for i in range(len(in_list)):
             header = astropy.io.fits.open(rawPath+'/'+in_list[i][0])
-            date = header[0].header['DATE'].replace('-','')
+            date = header[0].header['DATE-OBS'].replace('-','')
 
             if (str(date) == newdate_after.strftime('%Y%m%d')) or (str(date) == newdate_before.strftime('%Y%m%d')):
                 # If so, copy it to the appropriate calibrations directory and write in the text list.
@@ -1321,7 +1321,7 @@ def getPlusMinusDays(science_frame, num_days):
     num_days: number of UT days in radius to search.
     """
     sci_header = astropy.io.fits.open(science_frame)
-    sci_date = sci_header[0].header['DATE'].replace('-','')
+    sci_date = sci_header[0].header['DATE-OBS'].replace('-','')
     t = time.strptime(sci_date,'%Y%m%d')
     newdate_after=datetime.datetime(t.tm_year,t.tm_mon,t.tm_mday)+datetime.timedelta(num_days)
     newdate_before=datetime.datetime(t.tm_year,t.tm_mon,t.tm_mday)-datetime.timedelta(num_days)
@@ -1438,7 +1438,7 @@ class HeaderInfo(object):
             self.obstype = header[0].header['OBSTYPE'].strip()
             self.ID = header[0].header['OBSID'].split('-')[-1]
             self.grat = header[0].header['GRATING'][0:1]
-            self.date = header[0].header[ 'DATE'].replace('-','')
+            self.date = header[0].header['DATE-OBS'].replace('-','')
             self.obsclass = header[0].header['OBSCLASS']
             self.aper = header[0].header['APERTURE']
             # If object name isn't alphanumeric, make it alphanumeric.
