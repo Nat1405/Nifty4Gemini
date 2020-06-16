@@ -1458,6 +1458,7 @@ def turnOffTelluricCorrectionFluxCalibration():
     options['nifsPipelineConfig']['telluricReduction'] = False
     options['nifsPipelineConfig']['telluricCorrection'] = False
     options['nifsPipelineConfig']['fluxCalibration'] = False
+    options['mergeConfig']['mergeStop'] = 2
     with open('./config.cfg', 'w') as config_file:
         options.write(config_file)
 
