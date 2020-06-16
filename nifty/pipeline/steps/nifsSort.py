@@ -50,7 +50,7 @@ from ..configobj.configobj import ConfigObj
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
 rewriteSciImageList, datefmt, downloadQueryCadc, CalibrationsNotFoundError, CalibrationsError, TelluricsNotFoundError, \
-ScienceObservationError, SkyFrameError, ObservationDirError, WavelengthError, checkForMDFiles
+ScienceObservationError, SkyFrameError, ObservationDirError, WavelengthError, checkForMDFiles, HeaderInfo
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -161,6 +161,13 @@ def start():
             raise ValueError("Invalid dataSource in config file.")
         
         rawPath = os.getcwd()+'/rawData'
+        with open('./config.cfg') as config_file:
+            options = ConfigObj(config_file, unrepr=True)
+        options['sortConfig']['rawPath'] = os.path.join(os.getcwd(),'rawData')
+        options['sortConfig']['program'] = ''
+        with open('./config.cfg', 'w') as config_file:
+            options.write(config_file)
+
 
     ############################################################################
     ############################################################################
@@ -1424,33 +1431,6 @@ def isTelluric(obstype, obsclass):
 
 def isTelluricSky(obstype, obsclass, poff, qoff, telluricSkyThreshold):
     return (obstype == 'OBJECT') and (obsclass == 'partnerCal') and math.sqrt((poff**2)+(qoff**2)) < telluricSkyThreshold
-
-class HeaderInfo(object):
-    def __init__(self, frame):
-        try:
-            header = astropy.io.fits.open(frame)
-
-            # Store information in variables.
-            self.instrument = header[0].header['INSTRUME']
-            if self.instrument != 'NIFS':
-                # Only grab frames belonging to NIFS raw data!
-                raise ValueError("Data isn't from NIFS!")
-            self.obstype = header[0].header['OBSTYPE'].strip()
-            self.ID = header[0].header['OBSID'].split('-')[-1]
-            self.grat = header[0].header['GRATING'][0:1]
-            self.date = header[0].header['DATE-OBS'].replace('-','')
-            self.obsclass = header[0].header['OBSCLASS']
-            self.aper = header[0].header['APERTURE']
-            # If object name isn't alphanumeric, make it alphanumeric.
-            self.objname = re.sub('[^a-zA-Z0-9\n\.]', '', header[0].header['OBJECT'])
-            self.obsid = header[0].header['OBSID'].split('-')[-1]
-            self.poff = header[0].header['POFFSET']
-            self.qoff = header[0].header['QOFFSET']
-            self.exptime = float(header[0].header['EXPTIME'])
-            self.crWav = float(header[0].header['GRATWAVE'])
-        except Exception as e:
-            logging.error("Error getting header info for frame {}.".format(frame))
-            raise e
 
 def turnOffTelluricCorrectionFluxCalibration():
     with open('./config.cfg') as config_file:

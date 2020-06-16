@@ -29,7 +29,7 @@
 
 # STDLIB
 
-import logging, os, sys, shutil, pkg_resources, argparse
+import logging, os, sys, shutil, pkg_resources, argparse, math, glob
 from datetime import datetime
 
 # LOCAL
@@ -48,7 +48,7 @@ from configobj.configobj import ConfigObj
 # Import custom pipeline setup Class.
 from objectoriented.GetConfig import GetConfig
 # Conveniently import some utility functions so we don't have to type the full name.
-from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interactiveNIFSInput
+from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interactiveNIFSInput, HeaderInfo
 
 #                                +
 #
@@ -221,6 +221,9 @@ def start(args):
 
     if config['nifsPipelineConfig']['merge']:
         nifsMerge.run()
+        config = reloadConfig()
+
+    makeDiagnostics()
 
     ###########################################################################
     ##                    Data Reduction Complete!                           ##
@@ -242,6 +245,33 @@ def reloadConfig():
     with open('./config.cfg') as config_file:
         config = ConfigObj(config_file, unrepr=True)
     return config
+
+def makeDiagnostics():
+    with open('./config.cfg') as config_file:
+        config = ConfigObj(config_file, unrepr=True)
+    rawPath = config['sortConfig']['rawPath']
+    skyThreshold = config['sortConfig']['skyThreshold']
+
+    logging.info("Pipeline diagnostics.")
+    logging.info("{: <23} {: <23} {: <23}".format("Science Frame", "Uncorrected cube okay?", "Corrected cube okay?"))
+    count_science = 0
+    count_uncorrected = 0
+    count_full_corrected = 0
+    for frame in glob.glob(os.path.join(rawPath, "N2*")):
+        headers = HeaderInfo(frame)
+        # Is science and not sky?
+        if (headers.obstype == "OBJECT") and (headers.obsclass == "science") and (math.sqrt((headers.poff**2)+(headers.qoff**2)) < skyThreshold):
+            count_science += 1
+            uncorrectedStatus = 'no'
+            fluxCalStatus = 'no'
+            if os.path.exists(os.path.join(os.getcwd(), headers.objname, 'Merged_uncorrected', str(headers.date)+'_obs'+str(headers.ID), 'ctfbrsn'+os.path.split(frame)[-1])):
+                count_uncorrected += 1
+                uncorrectedStatus = 'yes'
+            if os.path.exists(os.path.join(os.getcwd(), headers.objname, 'Merged_telCorAndFluxCalibrated', str(headers.date)+'_obs'+str(headers.ID), 'factfbrsn'+os.path.split(frame)[-1])):  
+                count_full_corrected += 1
+                fluxCalStatus = 'yes'
+            logging.info("{: <23} {: <23} {: <23}".format(os.path.split(frame)[-1], uncorrectedStatus, fluxCalStatus))
+    logging.info("Num science: {}, num uncorrected: {}, num full corrected: {}.".format(count_science, count_uncorrected, count_full_corrected))
 
 if __name__ == '__main__':
     # This block could let us call start nifsPipeline.py from the command line. It is disabled for now.
