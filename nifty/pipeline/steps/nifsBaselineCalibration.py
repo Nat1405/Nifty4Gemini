@@ -691,12 +691,13 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
         # Establish wavelength calibration for arclamp spectra. Output: A series of
         # files in a "database/" directory containing the wavelength solutions of
         # each slice and a reduced arc frame "wrgn"+ARC+".fits".
-        if os.path.exists("wrgn"+arc+".fits"):
+        if os.path.exists("wrgn"+arc+"_arc.fits"):
             if over:
-                iraf.delete("wrgn"+arc+".fits")
+                iraf.delete("wrgn"+arc+"_arc.fits")
                 iraf.nswavelength("rgn"+arc, coordli=clist, nsum=10, thresho=my_thresh, \
                                   trace='yes', fwidth=2.0, match=-6,cradius=8.0,fl_inter=interactive,nfound=10,nlost=10, \
                                   logfile=log)
+                shutil.move("wrgn"+arc+".fits", "wrgn"+arc+"_arc.fits")
             else:
                 print "\nOutput file exists and -over not set - ",\
                 "not determining wavelength solution and recreating the wavelength reference arc.\n"
@@ -704,14 +705,15 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
             iraf.nswavelength("rgn"+arc, coordli=clist, nsum=10, thresho=my_thresh, \
                               trace='yes', fwidth=2.0, match=-6,cradius=8.0,fl_inter=interactive,nfound=10,nlost=10, \
                               logfile=log)
+            shutil.move("wrgn"+arc+".fits", "wrgn"+arc+"_arc.fits")
     else:
         print "ERROR: For now, only some wavelength configurations are supported. The grating/central wavelength(microns) possibilities are Z/1.05, J/1.25, H/1.65, K/2.20."
         sys.exit(1)
 
     # Copy to relevant science observation/calibrations/ directories
     for item in glob.glob('database/idwrgn*'):
-        replaceNameDatabaseFiles(item, "wrgn"+arc, 'finalArc')
-    copyCalibration("wrgn"+arc+".fits", 'finalArc.fits', grating, over)
+        replaceNameDatabaseFiles(item, "wrgn"+arc+"_arc", 'finalArc')
+    copyCalibration("wrgn"+arc+"_arc.fits", 'finalArc.fits', grating, over)
     copyCalibrationDatabase("idwrgn", grating, "finalArc", over)
 
 #--------------------------------------------------------------------------------------------------------------------------------#
