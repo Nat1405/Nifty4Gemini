@@ -782,25 +782,27 @@ def makeRonchi(ronchilist, ronchiflat, calflat, grating, over, flatdark, log):
     if os.path.exists("ronchifile"):
         if over:
             iraf.delete("ronchifile")
-            os.remove("rgn"+ronchiflat+".fits")
+            os.remove("rgn"+ronchiflat+"_ronchi.fits")
+            iraf.copy("rgn"+ronchiflat+".fits", "rgn"+ronchiflat+"_ronchi.fits")
             iraf.nfsdist("rgn"+ronchiflat,fwidth=6.0, cradius=8.0, glshift=2.8, minsep=6.5, thresh=2000.0, nlost=3, fl_inter='no',logfile=log)
         else:
             print "\nOutput file exists and -over not set - ",\
             "not performing ronchi calibration with iraf.nfsdist.\n"
     else:
-        # Determine the spatial distortion correction. Output: overwrites "rgn"+ronchiflat+".fits" and makes
+        # Determine the spatial distortion correction. Output: writes "rgn"+ronchiflat+"_ronchi.fits" and makes
         # changes to files in /database directory.
-        iraf.nfsdist("rgn"+ronchiflat,fwidth=6.0, cradius=8.0, glshift=2.8, minsep=6.5, thresh=2000.0, nlost=3, fl_inter='no',logfile=log)
+        iraf.copy("rgn"+ronchiflat+".fits", "rgn"+ronchiflat+"_ronchi.fits")
+        iraf.nfsdist("rgn"+ronchiflat+"_ronchi",fwidth=6.0, cradius=8.0, glshift=2.8, minsep=6.5, thresh=2000.0, nlost=3, fl_inter='no',logfile=log)
 
     # Put the name of the spatially referenced ronchi flat "rgn"+ronchiflat into a
     # text file called ronchifile to be used by the pipeline later. Also associated files
     # are in the "database/" directory.
 
-    open("ronchifile", "w").write("rgn"+ronchiflat)
+    open("ronchifile", "w").write("rgn"+ronchiflat+"_ronchi")
     # Copy to relevant science observation/calibrations/ directories
     for item in glob.glob('database/idrgn*'):
-        replaceNameDatabaseFiles(item, "rgn"+ronchiflat, 'finalRonchi')
-    copyCalibration("rgn"+ronchiflat+".fits", 'finalRonchi.fits', grating, over)
+        replaceNameDatabaseFiles(item, "rgn"+ronchiflat+"_ronchi", 'finalRonchi')
+    copyCalibration("rgn"+ronchiflat+"_ronchi.fits", 'finalRonchi.fits', grating, over)
     copyCalibrationDatabase("idrgn", grating, "finalRonchi", over)
 
 #---------------------------------------------------------------------------------------------------------------------------------------#
