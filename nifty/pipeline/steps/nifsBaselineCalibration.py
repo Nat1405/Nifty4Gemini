@@ -318,20 +318,22 @@ def getShift(calflat, grating, over, log):
 
     # This code structure checks if iraf output files already exist. If output files exist and
     # over (overwrite) is specified, iraf output is overwritten.
-    if os.path.exists('s'+calflat+'.fits'):
+    if os.path.exists('s'+calflat+'_shift.fits'):
         if over:
-            os.remove('s'+calflat+'.fits')
+            os.remove('s'+calflat+'_shift.fits')
             iraf.nfprepare(calflat,rawpath="",outpref="s", shiftx='INDEF', shifty='INDEF',fl_vardq='no',fl_corr='no',fl_nonl='no', fl_int='no', logfile=log)
+            shutil.move('s'+calflat+'.fits', 's'+calflat+'_shift.fits')
         else:
             logging.info("\nOutput exists and -over not set - skipping find shift")
     else:
         iraf.nfprepare(calflat,rawpath="",outpref="s", shiftx='INDEF', shifty='INDEF',fl_vardq='no',fl_corr='no',fl_nonl='no', fl_int='no', logfile=log)
+        shutil.move('s'+calflat+'.fits', 's'+calflat+'_shift.fits')
 
     # Put the name of the reference shift file into a text file called
     # shiftfile to be used by the pipeline later.
-    open("shiftfile", "w").write("s"+calflat)
+    open("shiftfile", "w").write("s"+calflat+"_shift")
 
-    copyCalibration('s'+calflat+'.fits', 'shiftFile.fits', grating, over)
+    copyCalibration('s'+calflat+'_shift.fits', 's'+calflat+'_shift.fits', grating, over)
 
 
 #---------------------------------------------------------------------------------------------------------------------------------------#
@@ -369,11 +371,11 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
         if os.path.exists('n'+image+'.fits'):
             if over:
                 os.remove('n'+image+'.fits')
-                iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat, fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
+                iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat+"_shift", fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
             else:
                 print "Output exists and -over- not set - skipping nfprepare of lamps on flats"
         else:
-            iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat, fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
+            iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat+"_shift", fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
     flatlist = checkLists(flatlist, '.', 'n', '.fits')
 
     # Update lamps off flat images with offset value and generate variance and data quality extensions.
@@ -382,11 +384,11 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
         if os.path.exists('n'+image+'.fits'):
             if over:
                 iraf.delete('n'+image+'.fits')
-                iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat, fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
+                iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat+"_shift", fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
             else:
                 print "\nOutput exists and -over- not set - skipping nfprepare of lamps off flats."
         else:
-            iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat, fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
+            iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat+"_shift", fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
     flatdarklist = checkLists(flatdarklist, '.', 'n', '.fits')
 
     # Combine lamps on flat images, "n"+image+".fits". Output combined file will have name of the first flat file with "gn" prefix.
@@ -511,9 +513,9 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
     open("sflat_bpmfile", "w").write("rgn"+calflat+"_sflat_bpm.pl") # Bad Pixel Mask
 
     # Copy to relevant science directory calibrations/ directories as well
-    copyCalibration("rgn"+calflat+"_flat.fits", 'finalFlat.fits', grating, over)
-    copyCalibration("rgn"+calflat+"_sflat.fits", 'preliminaryFlat.fits', grating, over)
-    copyCalibration("rgn"+calflat+"_sflat_bpm.pl", 'finalBadPixelMask.pl', grating, over)
+    copyCalibration("rgn"+calflat+"_flat.fits", "rgn"+calflat+"_flat.fits", grating, over)
+    copyCalibration("rgn"+calflat+"_sflat.fits", "rgn"+calflat+"_sflat.fits", grating, over)
+    copyCalibration("rgn"+calflat+"_sflat_bpm.pl", "rgn"+calflat+"_sflat_bpm.pl", grating, over)
 
 #--------------------------------------------------------------------------------------------------------------------------------#
 
@@ -712,9 +714,9 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
 
     # Copy to relevant science observation/calibrations/ directories
     for item in glob.glob('database/idwrgn*'):
-        replaceNameDatabaseFiles(item, "wrgn"+arc+"_arc", 'finalArc')
-    copyCalibration("wrgn"+arc+"_arc.fits", 'finalArc.fits', grating, over)
-    copyCalibrationDatabase("idwrgn", grating, "finalArc", over)
+        replaceNameDatabaseFiles(item, "wrgn"+arc, "wrgn"+arc+"_arc")
+    copyCalibration("wrgn"+arc+"_arc.fits", "wrgn"+arc+"_arc.fits", grating, over)
+    copyCalibrationDatabase("idwrgn", grating, over)
 
 #--------------------------------------------------------------------------------------------------------------------------------#
 
@@ -740,13 +742,13 @@ def makeRonchi(ronchilist, ronchiflat, calflat, grating, over, flatdark, log):
         if os.path.exists("n"+image+'.fits'):
             if over:
                 iraf.delete("n"+image+'.fits')
-                iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat, \
+                iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat+"_shift", \
                                bpm="rgn"+calflat+"_sflat_bpm.pl", fl_vardq="yes",fl_corr="no",fl_nonl="no", \
                                logfile=log)
             else:
                 print "\nOutput file exists and -over not set - skipping prepare of ronchis"
         else:
-            iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat, \
+            iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat+"_shift", \
                            bpm="rgn"+calflat+"_sflat_bpm.pl", fl_vardq="yes",fl_corr="no",fl_nonl="no", \
                            logfile=log)
     ronchilist = checkLists(ronchilist, '.', 'n', '.fits')
@@ -802,10 +804,8 @@ def makeRonchi(ronchilist, ronchiflat, calflat, grating, over, flatdark, log):
 
     open("ronchifile", "w").write("rgn"+ronchiflat+"_ronchi")
     # Copy to relevant science observation/calibrations/ directories
-    for item in glob.glob('database/idrgn*'):
-        replaceNameDatabaseFiles(item, "rgn"+ronchiflat+"_ronchi", 'finalRonchi')
-    copyCalibration("rgn"+ronchiflat+"_ronchi.fits", 'finalRonchi.fits', grating, over)
-    copyCalibrationDatabase("idrgn", grating, "finalRonchi", over)
+    copyCalibration("rgn"+ronchiflat+"_ronchi.fits", "rgn"+ronchiflat+"_ronchi.fits", grating, over)
+    copyCalibrationDatabase("idrgn", grating, over)
 
 #---------------------------------------------------------------------------------------------------------------------------------------#
 

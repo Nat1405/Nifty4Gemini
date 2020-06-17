@@ -220,36 +220,39 @@ def start(kind, telluricDirectoryList="", scienceDirectoryList=""):
 
         # Copy relevant calibrations over to the science directory.
         # Open and store the name of the MDF shift reference file from shiftfile into shift.
-        shift = 'calibrations/shiftFile'
+        shift = glob.glob('calibrations/sN*_shift.fits')[0].split('.')[0]
         # Open and store the name of the flat frame
-        flat = 'calibrations/finalFlat'
+        flat = glob.glob('calibrations/rgnN*_flat.fits')[0].split('.')[0]
         # Open and store the bad pixel mask
-        finalBadPixelMask = 'calibrations/finalBadPixelMask'
+        finalBadPixelMask = glob.glob('calibrations/rgnN*_sflat_bpm.pl')[0].split('.')[0]
         # Ronchi, arc and database must all be in local calibrations directory
         # Open and store the name of the reduced spatial correction ronchi flat frame name from ronchifile in ronchi.
-        ronchi = 'finalRonchi'
+        ronchi = glob.glob('calibrations/rgnN*_ronchi.fits')[0].split('.')[0]
         # Open and store the name of the reduced wavelength calibration arc frame from arclist in arc.
-        arc = 'finalArc'
+        arc = glob.glob('calibrations/wrgnN*_arc.fits')[0].split('.')[0]
 
-        if os.path.exists(os.getcwd()+'/'+ronchi+".fits"):
+        if os.path.exists(os.getcwd()+'/'+os.path.split(ronchi)[-1]+".fits"):
             if over:
-                iraf.delete(os.getcwd()+'/calibrations/finalRonchi.fits')
+                iraf.delete(os.getcwd()+'/'+os.path.split(ronchi)[-1]+".fits")
                 # Copy the spatial calibration ronchi flat frame from Calibrations_grating to the observation directory.
-                shutil.copy(os.getcwd()+'/calibrations/finalRonchi.fits', ronchi+'.fits')
+                shutil.copy(os.getcwd()+'/'+ronchi+'.fits', os.path.split(ronchi)[-1]+'.fits')
             else:
                 print "\nOutput exists and -over not set - skipping copy of reduced ronchi"
         else:
-            shutil.copy(os.getcwd()+'/calibrations/finalRonchi.fits', ronchi+'.fits')
+            shutil.copy(os.getcwd()+'/'+ronchi+'.fits', os.path.split(ronchi)[-1]+'.fits')
 
-        if os.path.exists(os.getcwd()+'/'+arc+".fits"):
+        if os.path.exists(os.getcwd()+'/'+os.path.split(arc)[-1]+".fits"):
             if over:
-                iraf.delete(os.getcwd()+'/calibrations/finalArc.fits')
+                iraf.delete(os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
                 # Copy the spatial calibration arc flat frame from Calibrations_grating to the observation directory.
-                shutil.copy(os.getcwd()+'/calibrations/finalArc.fits', arc+'.fits')
+                shutil.copy(os.getcwd()+'/'+arc+'.fits', os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
             else:
                 print "\nOutput exists and -over not set - skipping copy of reduced arc"
         else:
-            shutil.copy(os.getcwd()+'/calibrations/finalArc.fits', arc+'.fits')
+            shutil.copy(os.getcwd()+'/'+arc+'.fits', os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
+
+        ronchi = os.path.split(ronchi)[1]
+        arc = os.path.split(arc)[1]
         # Make sure the database files are in place. Current understanding is that
         # these should be local to the reduction directory, so need to be copied from
         # the calDir.

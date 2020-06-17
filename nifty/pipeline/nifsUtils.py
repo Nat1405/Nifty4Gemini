@@ -531,7 +531,7 @@ def copyCalibration(inputFile, outputFile, grating, over):
         else:
             shutil.copy(inputFile, telluricDirectory+'/calibrations/'+outputFile)
 
-def copyCalibrationDatabase(inputPrefix, grating, fileType, over):
+def copyCalibrationDatabase(inputPrefix, grating, over):
     """
     Copy calibrations over to science directories.
 
@@ -550,22 +550,16 @@ def copyCalibrationDatabase(inputPrefix, grating, fileType, over):
                     for item in glob.glob(scienceDirectory+"/calibrations/database/"+inputPrefix+"*"):
                         os.remove(item)
                     for item in glob.glob('database/'+inputPrefix+'*'):
-                        newName = item.split('_')
-                        newName = inputPrefix[:2]+fileType+'_SCI_'+newName[2]+'_'
-                        shutil.copy(item, scienceDirectory+"/calibrations/database/"+newName)
+                        shutil.copy(item, scienceDirectory+"/calibrations/database/")
                 else:
                     print "\nOutput exists and -over not set - skipping copy of database directory"
             else:
                 for item in glob.glob('database/'+inputPrefix+'*'):
-                    newName = item.split('_')
-                    newName = inputPrefix[:2]+fileType+'_SCI_'+newName[2]+'_'
-                    shutil.copy(item, scienceDirectory+"/calibrations/database/"+newName)
+                    shutil.copy(item, scienceDirectory+"/calibrations/database/")
         else:
             os.mkdir(scienceDirectory+"/calibrations/database")
             for item in glob.glob('database/'+inputPrefix+'*'):
-                newName = item.split('_')
-                newName = inputPrefix[:2]+fileType+'_SCI_'+newName[2]+'_'
-                shutil.copy(item, scienceDirectory+"/calibrations/database/"+newName)
+                shutil.copy(item, scienceDirectory+"/calibrations/database/")
     # Also copy to telluric directories
     for telluricDirectory in glob.glob('../'+grating+'/Tellurics/obs*'):
         # Make sure the cals directory exists.
@@ -578,22 +572,16 @@ def copyCalibrationDatabase(inputPrefix, grating, fileType, over):
                     for item in glob.glob(telluricDirectory+"/calibrations/database/"+inputPrefix+"*"):
                         os.remove(item)
                     for item in glob.glob('database/'+inputPrefix+'*'):
-                        newName = item.split('_')
-                        newName = inputPrefix[:2]+fileType+'_SCI_'+newName[2]+'_'
-                        shutil.copy(item, telluricDirectory+"/calibrations/database/"+newName)
+                        shutil.copy(item, telluricDirectory+"/calibrations/database/")
                 else:
                     print "\nOutput exists and -over not set - skipping copy of database directory"
             else:
                 for item in glob.glob('database/'+inputPrefix+'*'):
-                    newName = item.split('_')
-                    newName = inputPrefix[:2]+fileType+'_SCI_'+newName[2]+'_'
-                    shutil.copy(item, telluricDirectory+"/calibrations/database/"+newName)
+                    shutil.copy(item, telluricDirectory+"/calibrations/database/")
         else:
             os.mkdir(telluricDirectory+"/calibrations/database")
             for item in glob.glob('database/'+inputPrefix+'*'):
-                newName = item.split('_')
-                newName = inputPrefix[:2]+fileType+'_SCI_'+newName[2]+'_'
-                shutil.copy(item, telluricDirectory+"/calibrations/database/"+newName)
+                shutil.copy(item, telluricDirectory+"/calibrations/database/")
 
 
 #-----------------------------------------------------------------------------#
@@ -607,7 +595,8 @@ def replaceNameDatabaseFiles(inputFile, oldFileName, newFileName):
     modifiedLines = re.sub(oldFileName, newFileName, lines)
     with open("temp.txt", "w") as f:
         f.write(modifiedLines)
-    shutil.move("temp.txt", inputFile)
+    os.remove(inputFile)
+    shutil.move("temp.txt", re.sub(oldFileName, newFileName, inputFile))
 
 
 #-----------------------------------------------------------------------------#
