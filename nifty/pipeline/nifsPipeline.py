@@ -48,7 +48,7 @@ from configobj.configobj import ConfigObj
 # Import custom pipeline setup Class.
 from objectoriented.GetConfig import GetConfig
 # Conveniently import some utility functions so we don't have to type the full name.
-from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interactiveNIFSInput, HeaderInfo
+from nifsUtils import datefmt, printDirectoryLists, writeList, getParam, interactiveNIFSInput, HeaderInfo, ProductTagger
 
 #                                +
 #
@@ -223,6 +223,7 @@ def start(args):
         nifsMerge.run()
         config = reloadConfig()
 
+    tagProducts()
     makeDiagnostics()
 
     ###########################################################################
@@ -272,6 +273,11 @@ def makeDiagnostics():
                 fluxCalStatus = 'yes'
             logging.info("{: <23} {: <23} {: <23}".format(os.path.split(frame)[-1], uncorrectedStatus, fluxCalStatus))
     logging.info("Num science: {}, num uncorrected: {}, num full corrected: {}.".format(count_science, count_uncorrected, count_full_corrected))
+
+def tagProducts():
+    tagger = ProductTagger("./config.cfg")
+    tagger.run()
+
 
 if __name__ == '__main__':
     # This block could let us call start nifsPipeline.py from the command line. It is disabled for now.

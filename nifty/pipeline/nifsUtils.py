@@ -1338,5 +1338,121 @@ class HeaderInfo(object):
             logging.error("Error getting header info for frame {}.".format(frame))
             raise e
 
+
+class ProductTagger:
+    def __init__(self, configFile):
+        user_clobber=iraf.envget("clobber")
+        iraf.reset(clobber='yes')
+        self.scienceDirectories = self.parseConfig(configFile)
+
+
+    def run(self):
+        """
+        Tags products (and updates datalabels) in science directories with an extra extension that identifies calibrations.
+        """
+        for scienceDir in self.scienceDirectories:  
+            try:
+                cal_ext = self.makeCalExt(scienceDir)
+            except Exception:
+                print("Failed to make calibration extension for {}. Skipping.".format(scienceDir))
+                continue
+
+            try:
+                bpm_file = self.getBPMFile(scienceDir)
+            except Exception:
+                print("Failed to make bad pixel mask extension for {}. It will not be included.".format(scienceDir))
+                bpm_file = None
+
+            
+            for productType in ["uncorrected", "telluric_corrected", "telluric_corrected_and_flux_cal"]:
+                try:
+                    self.tagProducts(scienceDir, productType, cal_ext, bpm_file)
+                except Exception:
+                    print("Failed to tag {} products in {}. Skipping.".format(productType, scienceDir))
+
+
+    def makeCalExt(self, scienceDir):
+        shift = glob.glob(os.path.join(scienceDir, "calibrations", "*_shift.fits"))
+        flat = glob.glob(os.path.join(scienceDir, "calibrations", "*_flat.fits"))
+        arc = glob.glob(os.path.join(scienceDir, "calibrations", "*_arc.fits"))
+        ronchi = glob.glob(os.path.join(scienceDir, "calibrations", "*_ronchi.fits"))
+
+        cals = [shift, flat, arc, ronchi]
+
+        assert all([len(x) <= 1 for x in cals])
+
+        cals = [os.path.split(x[0])[-1] if x else "" for x in cals]
+
+        a1 = np.array(['Processed Shift File', 'Processed Flat', 'Processed Arc', 'Processed Ronchi'])
+        a2 = np.array(cals)
+        col1 = astropy.io.fits.Column(name='Calibration Type', format='50A', array=a1)
+        col2 = astropy.io.fits.Column(name='Filename', format='50A', array=a2)
+
+        cols = astropy.io.fits.ColDefs([col1, col2])
+
+        hdu = astropy.io.fits.BinTableHDU.from_columns(cols, name="CAL")
+
+        return hdu
+
+
+    def getBPMFile(self, scienceDir):
+        bpm = glob.glob(os.path.join(scienceDir, "calibrations", "*.pl"))
+        return bpm[0]
+
+
+
+    def tagProducts(self, scienceDir, productType, cal_ext, bpm_file):
+        if productType == "uncorrected":
+            prefix = "ctfbrsn"
+            products = glob.glob(os.path.join(scienceDir, "products_"+productType, prefix+"N*"))
+        elif productType == "telluric_corrected":
+            prefix = "actfbrsn"
+            products = glob.glob(os.path.join(scienceDir, "products_"+productType, prefix+"N*"))
+        elif productType == "fluxcal_AND_telluric_corrected":
+            prefix = "factfbrsn"
+            products = glob.glob(os.path.join(scienceDir, "products_"+productType, prefix+"N*"))
+        else:
+            raise ValueError("Invalid product type: {}".format(productType))
+
+        for product in products:
+            try:
+                with astropy.io.fits.open(product, mode='update') as hdu1:
+                    hdu1['PRIMARY'].header['DATALAB'] = hdu1['PRIMARY'].header['DATALAB']+'-'+prefix.upper()
+                    if not self.hasCalExt(hdu1):
+                        hdu1.append(cal_ext)
+                    hdu1.flush()
+                if not self.hasBPMExt(product):
+                    iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
+            except Exception:
+                print("Problem adding cal and bpm extension to {}. Skipping.".format(product))
+                continue
+
+
+    def parseConfig(self, configFile):
+        try:
+            with open(configFile) as f:
+                lines = f.readlines()
+        except IOError:
+            return []
+
+        try:
+            line = [line for line in lines if "scienceDirectoryList =" in line][0]
+            line = line.rstrip('\n').replace("scienceDirectoryList = [", "")
+            line = line.replace("]", "")
+            line = line.replace("'", "")
+            scienceDirectories = line.split(",")
+        except Exception:
+            return []
+
+        return scienceDirectories
+
+    def hasCalExt(self, hdulist):
+        return any([x.name == "CAL" for x in hdulist])
+
+    def hasBPMExt(self, file):
+        hdulist = astropy.io.fits.open(file)
+        return any([x.name == "BPM" for x in hdulist])
+
+
 #-----------------------------------------------------------------------------#
 
