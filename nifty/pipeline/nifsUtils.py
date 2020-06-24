@@ -940,7 +940,7 @@ def checkEntry(entry, entryType, filelist):
 
 #-----------------------------------------------------------------------------#
 
-def checkLists(original_list, path, prefix, suffix):
+def checkLists(original_list, path, prefix, suffix, outlist=None):
     """Check that all files made it through an iraf step. """
 
     new_list = []
@@ -961,6 +961,12 @@ def checkLists(original_list, path, prefix, suffix):
 
 
             pass
+
+    if outlist:
+        # Write outlist in path
+        with open(os.path.join(path, outlist), 'w') as f:
+            for frame in new_list:
+                f.write(frame+"\n")
 
     return new_list
 

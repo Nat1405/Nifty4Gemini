@@ -294,15 +294,15 @@ def start(calibrationDirectoryList=""):
         print ""
         print "##############################################################################\n"
 
-    # Copy calibrations here b/c need to tag them before copying them to science dirs.
-    copyCalibration('s'+calflat+'_shift.fits', 's'+calflat+'_shift.fits', grating, over)
-    copyCalibration("rgn"+calflat+"_flat.fits", "rgn"+calflat+"_flat.fits", grating, over)
-    copyCalibration("rgn"+calflat+"_sflat.fits", "rgn"+calflat+"_sflat.fits", grating, over)
-    copyCalibration("rgn"+calflat+"_sflat_bpm.pl", "rgn"+calflat+"_sflat_bpm.pl", grating, over)
-    copyCalibration("wrgn"+arc+"_arc.fits", "wrgn"+arc+"_arc.fits", grating, over)
-    copyCalibrationDatabase("idwrgn", grating, over)
-    copyCalibration("rgn"+ronchiflat+"_ronchi.fits", "rgn"+ronchiflat+"_ronchi.fits", grating, over)
-    copyCalibrationDatabase("idrgn", grating, over)
+        # Copy calibrations here b/c need to tag them before copying them to science dirs.
+        copyCalibration('s'+calflat+'_shift.fits', 's'+calflat+'_shift.fits', grating, over)
+        copyCalibration("rgn"+calflat+"_flat.fits", "rgn"+calflat+"_flat.fits", grating, over)
+        copyCalibration("rgn"+calflat+"_sflat.fits", "rgn"+calflat+"_sflat.fits", grating, over)
+        copyCalibration("rgn"+calflat+"_sflat_bpm.pl", "rgn"+calflat+"_sflat_bpm.pl", grating, over)
+        copyCalibration("wrgn"+arc+"_arc.fits", "wrgn"+arc+"_arc.fits", grating, over)
+        copyCalibrationDatabase("idwrgn", grating, over)
+        copyCalibration("rgn"+ronchiflat+"_ronchi.fits", "rgn"+ronchiflat+"_ronchi.fits", grating, over)
+        copyCalibrationDatabase("idrgn", grating, over)
 
     # Return to directory script was begun from.
     os.chdir(path)
@@ -383,7 +383,7 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
                 print "Output exists and -over- not set - skipping nfprepare of lamps on flats"
         else:
             iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat+"_shift", fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
-    flatlist = checkLists(flatlist, '.', 'n', '.fits')
+    flatlist = checkLists(flatlist, '.', 'n', '.fits', outlist='flatlist')
 
     # Update lamps off flat images with offset value and generate variance and data quality extensions.
     for image in flatdarklist:
@@ -396,7 +396,7 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
                 print "\nOutput exists and -over- not set - skipping nfprepare of lamps off flats."
         else:
             iraf.nfprepare(image+'.fits',rawpath='.',shiftim="s"+calflat+"_shift", fl_vardq='yes',fl_corr='no',fl_nonl='no', logfile=log)
-    flatdarklist = checkLists(flatdarklist, '.', 'n', '.fits')
+    flatdarklist = checkLists(flatdarklist, '.', 'n', '.fits', outlist='flatdarklist')
 
     # Combine lamps on flat images, "n"+image+".fits". Output combined file will have name of the first flat file with "gn" prefix.
     if os.path.exists('gn'+calflat+'.fits'):
@@ -572,7 +572,7 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
 
     # Check that output files for all arc images exists from nfprepare; if output does not
     # exist remove corresponding arc images from arclist.
-    arclist = checkLists(arclist, '.', 'n', '.fits')
+    arclist = checkLists(arclist, '.', 'n', '.fits', outlist='arclist')
 
     # Update arc dark frames with mdf offset value and generate variance and data
     # quality extensions. Results in "n"+image+".fits"
@@ -589,7 +589,7 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
 
     # Check that output files for all arc images exists from nfprepare; if output does not
     # exist remove corresponding arc images from arclist.
-    arcdarklist = checkLists(arcdarklist, '.', 'n', '.fits')
+    arcdarklist = checkLists(arcdarklist, '.', 'n', '.fits', outlist='arcdarklist')
 
     # Combine arc frames, "n"+image+".fits". Output combined file will have the name of the first arc file.
     if os.path.exists("gn"+arc+".fits"):
@@ -750,7 +750,7 @@ def makeRonchi(ronchilist, ronchiflat, calflat, grating, over, flatdark, log):
             iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat+"_shift", \
                            bpm="rgn"+calflat+"_sflat_bpm.pl", fl_vardq="yes",fl_corr="no",fl_nonl="no", \
                            logfile=log)
-    ronchilist = checkLists(ronchilist, '.', 'n', '.fits')
+    ronchilist = checkLists(ronchilist, '.', 'n', '.fits', outlist='ronchilist')
 
     # Combine nfprepared ronchi flat images "n"+image+".fits". Output: combined file will
     # have the name of the first ronchi flat file, "gn"+ronchiflat+".fits".
