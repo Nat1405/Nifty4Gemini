@@ -294,6 +294,15 @@ def start(calibrationDirectoryList=""):
         print ""
         print "##############################################################################\n"
 
+    # Copy calibrations here b/c need to tag them before copying them to science dirs.
+    copyCalibration('s'+calflat+'_shift.fits', 's'+calflat+'_shift.fits', grating, over)
+    copyCalibration("rgn"+calflat+"_flat.fits", "rgn"+calflat+"_flat.fits", grating, over)
+    copyCalibration("rgn"+calflat+"_sflat.fits", "rgn"+calflat+"_sflat.fits", grating, over)
+    copyCalibration("rgn"+calflat+"_sflat_bpm.pl", "rgn"+calflat+"_sflat_bpm.pl", grating, over)
+    copyCalibration("wrgn"+arc+"_arc.fits", "wrgn"+arc+"_arc.fits", grating, over)
+    copyCalibrationDatabase("idwrgn", grating, over)
+    copyCalibration("rgn"+ronchiflat+"_ronchi.fits", "rgn"+ronchiflat+"_ronchi.fits", grating, over)
+    copyCalibrationDatabase("idrgn", grating, over)
 
     # Return to directory script was begun from.
     os.chdir(path)
@@ -332,8 +341,6 @@ def getShift(calflat, grating, over, log):
     # Put the name of the reference shift file into a text file called
     # shiftfile to be used by the pipeline later.
     open("shiftfile", "w").write("s"+calflat+"_shift")
-
-    copyCalibration('s'+calflat+'_shift.fits', 's'+calflat+'_shift.fits', grating, over)
 
 
 #---------------------------------------------------------------------------------------------------------------------------------------#
@@ -511,11 +518,6 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
     open("flatfile", "w").write("rgn"+calflat+"_flat")              # Final flat field
     open("sflatfile", "w").write("rgn"+calflat+"_sflat")            # Flat field before renormalization (before nsslitfunction)
     open("sflat_bpmfile", "w").write("rgn"+calflat+"_sflat_bpm.pl") # Bad Pixel Mask
-
-    # Copy to relevant science directory calibrations/ directories as well
-    copyCalibration("rgn"+calflat+"_flat.fits", "rgn"+calflat+"_flat.fits", grating, over)
-    copyCalibration("rgn"+calflat+"_sflat.fits", "rgn"+calflat+"_sflat.fits", grating, over)
-    copyCalibration("rgn"+calflat+"_sflat_bpm.pl", "rgn"+calflat+"_sflat_bpm.pl", grating, over)
 
 #--------------------------------------------------------------------------------------------------------------------------------#
 
@@ -712,11 +714,8 @@ def makeWaveCal(arclist, arc, arcdarklist, arcdark, grating, log, over, path):
         print "ERROR: For now, only some wavelength configurations are supported. The grating/central wavelength(microns) possibilities are Z/1.05, J/1.25, H/1.65, K/2.20."
         sys.exit(1)
 
-    # Copy to relevant science observation/calibrations/ directories
     for item in glob.glob('database/idwrgn*'):
         replaceNameDatabaseFiles(item, "wrgn"+arc, "wrgn"+arc+"_arc")
-    copyCalibration("wrgn"+arc+"_arc.fits", "wrgn"+arc+"_arc.fits", grating, over)
-    copyCalibrationDatabase("idwrgn", grating, over)
 
 #--------------------------------------------------------------------------------------------------------------------------------#
 
@@ -803,9 +802,6 @@ def makeRonchi(ronchilist, ronchiflat, calflat, grating, over, flatdark, log):
     # are in the "database/" directory.
 
     open("ronchifile", "w").write("rgn"+ronchiflat+"_ronchi")
-    # Copy to relevant science observation/calibrations/ directories
-    copyCalibration("rgn"+ronchiflat+"_ronchi.fits", "rgn"+ronchiflat+"_ronchi.fits", grating, over)
-    copyCalibrationDatabase("idrgn", grating, over)
 
 #---------------------------------------------------------------------------------------------------------------------------------------#
 
