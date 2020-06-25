@@ -32,6 +32,7 @@ if sys_pf == 'darwin':
     matplotlib.use("TkAgg")
 
 import time, sys, calendar, astropy.io.fits, urllib, shutil, glob, os, fileinput, logging, smtplib, pkg_resources, math, re, collections, requests, hashlib, tempfile, json
+import astropy.io.fits as fits
 import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
@@ -1293,6 +1294,7 @@ def checkForMDFiles(path, query):
 
 class CalibrationsError(Exception):
     """General error for tasks while getting calibrations."""
+    pass
 
 class CalibrationsNotFoundError(CalibrationsError):
     """Raised when calibrations aren't found for a particular science frame."""
@@ -1458,6 +1460,152 @@ class ProductTagger:
     def hasBPMExt(self, file):
         hdulist = astropy.io.fits.open(file)
         return any([x.name == "BPM" for x in hdulist])
+
+
+class CalibrationTagger:
+    def __init__(self, calDir):
+        user_clobber=iraf.envget("clobber")
+        iraf.reset(clobber='yes')
+        self.calDir = calDir
+
+        self.keywordDict = {
+                        "FCOMBINE": "Number of flat frames used in processing",
+                        "ACOMBINE": "Number of arc frames used in processing",
+                        "DCOMBINE": "Number of dark frames used in processing",
+                        "FCMB":     "Flat frame used in processing",
+                        "ACMB":     "Arc frame used in processing",
+                        "DCMB":     "Dark frame used in processing",
+                        "SHFILE":   "File supplying mdf shift in processing",
+                        "FLTFILE":  "Processed flat used in processing"
+        }
+
+    def run(self):
+        """
+        Tags calibrations with header keywords and extensions.
+        """
+
+        class Cals:
+            pass
+        cals = Cals()
+
+        try:
+            cals.flats = self.parseList(os.path.join(self.calDir, 'flatlist'))
+            cals.flatdarks = self.parseList(os.path.join(self.calDir, 'flatdarklist'))
+            cals.arcs = self.parseList(os.path.join(self.calDir, 'arclist'))
+            cals.arcdarks = self.parseList(os.path.join(self.calDir, 'arcdarklist'))
+            cals.ronchis = self.parseList(os.path.join(self.calDir, 'ronchilist'))
+            cals.flat_file = self.getCalFile(os.path.join(self.calDir, '*_flat.fits'))
+            cals.shift_file = self.getCalFile(os.path.join(self.calDir, '*_shift.fits'))
+            cals.arc_file = self.getCalFile(os.path.join(self.calDir, '*_arc.fits'))
+            cals.ronchi_file = self.getCalFile(os.path.join(self.calDir, '*_ronchi.fits'))
+            cals.bpm_file = glob.glob(os.path.join(self.calDir, '*_bpm.pl'))[0]
+        except Exception:
+            logging.error("Problem tagging cals in {}. Skipping.".format(self.calDir))
+            return
+
+        self.tagFlat(cals)
+        self.tagArc(cals)
+        self.tagRonchi(cals)
+        self.tagShift(cals)
+
+
+    def tagFlat(self, cals):
+        try:
+            with fits.open(cals.flat_file, mode="update") as hdul:
+                if "-FLAT" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+"-FLAT"
+                hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
+                hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.flats), self.keywordDict['FCOMBINE'])
+                for i in range(len(cals.flats)):
+                    hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.flats[i])[1], self.keywordDict['FCMB'])
+                hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flats), self.keywordDict['DCOMBINE'])
+                for i in range(len(cals.flatdarks)):
+                    hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
+                hdul.flush()
+            if not self.hasBPMExt(cals.flat_file):
+                iraf.imcopy(cals.bpm_file, cals.flat_file+"[BPM,type=mask,append]")
+        except Exception:
+            logging.error("Problem tagging {}.".format(cals.flat_file))    
+            
+
+    def tagArc(self, cals):
+        try:
+            with fits.open(cals.arc_file, mode="update") as hdul:
+                if "-ARC" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+"-ARC"
+                if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
+                    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
+                hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
+                hdul['PRIMARY'].header['ACOMBINE'] = (len(cals.arcs), self.keywordDict['ACOMBINE'])
+                for i in range(len(cals.arcs)):
+                    hdul['PRIMARY'].header['ACMB'+str(i+1)] = (os.path.split(cals.arcs[i])[1], self.keywordDict['ACMB'])
+                hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.arcdarks), self.keywordDict['DCOMBINE'])
+                for i in range(len(cals.arcdarks)):
+                    hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.arcdarks[i])[1], self.keywordDict['DCMB'])
+                hdul.flush()
+            if not self.hasBPMExt(cals.arc_file):
+                iraf.imcopy(cals.bpm_file, cals.arc_file+"[BPM,type=mask,append]")
+        except Exception:
+            logging.error("Problem tagging {}.".format(cals.arc_file))
+
+    def tagRonchi(self, cals):
+        try:
+            with fits.open(cals.ronchi_file, mode="update") as hdul:
+                if "-RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+"-RONCHI"
+                if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
+                    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
+                if ".fits" not in hdul['PRIMARY'].header['DARKIMAG']:
+                    hdul['PRIMARY'].header['DARKIMAG'] = hdul['PRIMARY'].header['DARKIMAG']+".fits"
+                hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
+                hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.ronchis), self.keywordDict['FCOMBINE'])
+                for i in range(len(cals.ronchis)):
+                    hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.ronchis[i])[1], self.keywordDict['FCMB'])
+                hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flatdarks), self.keywordDict['DCOMBINE'])
+                for i in range(len(cals.flatdarks)):
+                    hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
+                hdul.flush()
+            if not self.hasBPMExt(cals.ronchi_file):
+                iraf.imcopy(cals.bpm_file, cals.ronchi_file+"[BPM,type=mask,append]")
+        except Exception:
+            logging.error("Problem tagging {}.".format(cals.ronchi_file))
+
+
+    def tagShift(self, cals):
+        pass
+
+    def hasBPMExt(self, file):
+        hdulist = astropy.io.fits.open(file)
+        return any([x.name == "BPM" for x in hdulist])
+
+    def parseList(self, listpath):
+        """
+        Tries to open a list in listpath, asserts it's non-empty, and well-formed.
+        """
+        with open(listpath) as f:
+            lines = f.readlines()
+
+        lines = [x.rstrip('\n') + '.fits' for x in lines]
+
+        assert len(lines) > 0
+
+        assert all(["N2" in x for x in lines])
+
+        basePath = os.path.split(listpath)[0]
+
+        lines = [os.path.join(basePath, x) for x in lines]
+
+        return lines
+
+    def getCalFile(self, calpath):
+        try:
+            calfile = glob.glob(calpath)[0]
+        except IndexError as e:
+            logging.error("Calibration file {} not found.".format(calpath))
+            raise CalibrationsError()
+        with fits.open(calfile) as hdul:
+            assert len(hdul) > 0
+        return calfile
 
 
 #-----------------------------------------------------------------------------#

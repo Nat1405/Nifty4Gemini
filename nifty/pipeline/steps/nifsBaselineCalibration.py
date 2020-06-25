@@ -43,7 +43,7 @@ from pyraf import iraf, iraffunctions
 from ..configobj.configobj import ConfigObj
 
 # Import custom Nifty functions.
-from ..nifsUtils import datefmt, listit, checkLists, copyCalibration, copyCalibrationDatabase, replaceNameDatabaseFiles
+from ..nifsUtils import datefmt, listit, checkLists, copyCalibration, copyCalibrationDatabase, replaceNameDatabaseFiles, CalibrationTagger
 
 # Define constants.
 # Paths to Nifty data.
@@ -293,6 +293,10 @@ def start(calibrationDirectoryList=""):
         print "  ", calpath
         print ""
         print "##############################################################################\n"
+
+        
+        tagger = CalibrationTagger(os.getcwd())
+        tagger.run()
 
         # Copy calibrations here b/c need to tag them before copying them to science dirs.
         copyCalibration('s'+calflat+'_shift.fits', 's'+calflat+'_shift.fits', grating, over)
