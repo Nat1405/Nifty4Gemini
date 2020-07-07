@@ -1512,8 +1512,9 @@ class CalibrationTagger:
     def tagFlat(self, cals):
         try:
             with fits.open(cals.flat_file, mode="update") as hdul:
-                if "-FLAT" not in hdul['PRIMARY'].header['DATALAB']:
-                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+"-FLAT"
+                prefix = os.path.split(cals.flat_file)[1].split('N2')[0]
+                if prefix.upper()+"-FLAT" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-FLAT"
                 hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
                 hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.flats), self.keywordDict['FCOMBINE'])
                 for i in range(len(cals.flats)):
@@ -1531,8 +1532,9 @@ class CalibrationTagger:
     def tagArc(self, cals):
         try:
             with fits.open(cals.arc_file, mode="update") as hdul:
-                if "-ARC" not in hdul['PRIMARY'].header['DATALAB']:
-                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+"-ARC"
+                prefix = os.path.split(cals.arc_file)[1].split('N2')[0]
+                if prefix.upper()+"-ARC" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-ARC"
                 if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
                     hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
                 hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
@@ -1551,8 +1553,9 @@ class CalibrationTagger:
     def tagRonchi(self, cals):
         try:
             with fits.open(cals.ronchi_file, mode="update") as hdul:
-                if "-RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
-                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+"-RONCHI"
+                prefix = os.path.split(cals.ronchi_file)[1].split('N2')[0]
+                if prefix.upper()+"-RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-RONCHI"
                 if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
                     hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
                 if ".fits" not in hdul['PRIMARY'].header['DARKIMAG']:
