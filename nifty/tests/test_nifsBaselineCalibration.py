@@ -241,8 +241,8 @@ def test_nifsBaselineCalibration(tmpdir, monkeypatch):
     with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'rgnN20140428S0181_ronchi.fits')) as hdul:
         assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-013-RGN-RONCHI'
 
-    with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'wrgnN20140428S0085_arc.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-001-WRGN-ARC'
+    with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'wrnN20140428S0085_arc.fits')) as hdul:
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-001-WRN-ARC'
 
 
 

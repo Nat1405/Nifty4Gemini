@@ -220,16 +220,16 @@ def start(kind, telluricDirectoryList="", scienceDirectoryList=""):
 
         # Copy relevant calibrations over to the science directory.
         # Open and store the name of the MDF shift reference file from shiftfile into shift.
-        shift = glob.glob('calibrations/sN*_shift.fits')[0].split('.')[0]
+        shift = glob.glob('calibrations/*_shift.fits')[0].split('.')[0]
         # Open and store the name of the flat frame
-        flat = glob.glob('calibrations/rgnN*_flat.fits')[0].split('.')[0]
+        flat = glob.glob('calibrations/*_flat.fits')[0].split('.')[0]
         # Open and store the bad pixel mask
-        finalBadPixelMask = glob.glob('calibrations/rgnN*_sflat_bpm.pl')[0].split('.')[0]
+        finalBadPixelMask = glob.glob('calibrations/*_sflat_bpm.pl')[0].split('.')[0]
         # Ronchi, arc and database must all be in local calibrations directory
         # Open and store the name of the reduced spatial correction ronchi flat frame name from ronchifile in ronchi.
-        ronchi = glob.glob('calibrations/rgnN*_ronchi.fits')[0].split('.')[0]
+        ronchi = glob.glob('calibrations/*_ronchi.fits')[0].split('.')[0]
         # Open and store the name of the reduced wavelength calibration arc frame from arclist in arc.
-        arc = glob.glob('calibrations/wrgnN*_arc.fits')[0].split('.')[0]
+        arc = glob.glob('calibrations/*_arc.fits')[0].split('.')[0]
 
         if os.path.exists(os.getcwd()+'/'+os.path.split(ronchi)[-1]+".fits"):
             if over:

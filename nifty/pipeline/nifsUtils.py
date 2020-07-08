@@ -1372,7 +1372,7 @@ class ProductTagger:
                 bpm_file = None
 
             
-            for productType in ["uncorrected", "telluric_corrected", "telluric_corrected_and_flux_cal"]:
+            for productType in ["uncorrected", "telluric_corrected", "fluxcal_AND_telluric_corrected"]:
                 try:
                     self.tagProducts(scienceDir, productType, cal_ext, bpm_file)
                 except Exception:
@@ -1426,11 +1426,17 @@ class ProductTagger:
             try:
                 with astropy.io.fits.open(product, mode='update') as hdu1:
                     hdu1['PRIMARY'].header['DATALAB'] = hdu1['PRIMARY'].header['DATALAB']+'-'+prefix.upper()
+                    hdu1['PRIMARY'].header['FLATIMAG'] = hdu1['PRIMARY'].header['FLATIMAG'].split(os.path.sep)[1]+'.fits'
+                    hdu1['PRIMARY'].header['BPMFILE'] = hdu1['PRIMARY'].header['BPMFILE'].split(os.path.sep)[1]+'.pl'
                     if not self.hasCalExt(hdu1):
                         hdu1.append(cal_ext)
                     hdu1.flush()
                 if not self.hasBPMExt(product):
                     iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
+                    fits.delval(product, "DATALAB", extname='BPM')
+                    fits.delval(product, "NSFLON1", extname='BPM')
+                    fits.delval(product, "NSFLOF1", extname='BPM')
+
             except Exception:
                 print("Problem adding cal and bpm extension to {}. Skipping.".format(product))
                 continue
@@ -1469,9 +1475,9 @@ class CalibrationTagger:
         self.calDir = calDir
 
         self.keywordDict = {
-                        "FCOMBINE": "Number of flat frames used in processing",
-                        "ACOMBINE": "Number of arc frames used in processing",
-                        "DCOMBINE": "Number of dark frames used in processing",
+                        "FCOMBINE": "Num flat frames used in processing",
+                        "ACOMBINE": "Num arc frames used in processing",
+                        "DCOMBINE": "Num dark frames used in processing",
                         "FCMB":     "Flat frame used in processing",
                         "ACMB":     "Arc frame used in processing",
                         "DCMB":     "Dark frame used in processing",
@@ -1516,15 +1522,19 @@ class CalibrationTagger:
                 if prefix.upper()+"-FLAT" not in hdul['PRIMARY'].header['DATALAB']:
                     hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-FLAT"
                 hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
-                hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.flats), self.keywordDict['FCOMBINE'])
-                for i in range(len(cals.flats)):
-                    hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.flats[i])[1], self.keywordDict['FCMB'])
+                if len(cals.flats) > 1:
+                    hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.flats), self.keywordDict['FCOMBINE'])
+                    for i in range(len(cals.flats)):
+                        hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.flats[i])[1], self.keywordDict['FCMB'])
                 hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flats), self.keywordDict['DCOMBINE'])
                 for i in range(len(cals.flatdarks)):
                     hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
                 hdul.flush()
             if not self.hasBPMExt(cals.flat_file):
                 iraf.imcopy(cals.bpm_file, cals.flat_file+"[BPM,type=mask,append]")
+                fits.delval(cals.flat_file, "DATALAB", extname='BPM')
+                fits.delval(cals.flat_file, "NSFLON1", extname='BPM')
+                fits.delval(cals.flat_file, "NSFLOF1", extname='BPM')
         except Exception:
             logging.error("Problem tagging {}.".format(cals.flat_file))    
             
@@ -1538,15 +1548,19 @@ class CalibrationTagger:
                 if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
                     hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
                 hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
-                hdul['PRIMARY'].header['ACOMBINE'] = (len(cals.arcs), self.keywordDict['ACOMBINE'])
-                for i in range(len(cals.arcs)):
-                    hdul['PRIMARY'].header['ACMB'+str(i+1)] = (os.path.split(cals.arcs[i])[1], self.keywordDict['ACMB'])
+                if len(cals.arcs) > 1:
+                    hdul['PRIMARY'].header['ACOMBINE'] = (len(cals.arcs), self.keywordDict['ACOMBINE'])
+                    for i in range(len(cals.arcs)):
+                        hdul['PRIMARY'].header['ACMB'+str(i+1)] = (os.path.split(cals.arcs[i])[1], self.keywordDict['ACMB'])
                 hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.arcdarks), self.keywordDict['DCOMBINE'])
                 for i in range(len(cals.arcdarks)):
                     hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.arcdarks[i])[1], self.keywordDict['DCMB'])
                 hdul.flush()
             if not self.hasBPMExt(cals.arc_file):
                 iraf.imcopy(cals.bpm_file, cals.arc_file+"[BPM,type=mask,append]")
+                fits.delval(cals.arc_file, "DATALAB", extname='BPM')
+                fits.delval(cals.arc_file, "NSFLON1", extname='BPM')
+                fits.delval(cals.arc_file, "NSFLOF1", extname='BPM')
         except Exception:
             logging.error("Problem tagging {}.".format(cals.arc_file))
 
@@ -1561,15 +1575,19 @@ class CalibrationTagger:
                 if ".fits" not in hdul['PRIMARY'].header['DARKIMAG']:
                     hdul['PRIMARY'].header['DARKIMAG'] = hdul['PRIMARY'].header['DARKIMAG']+".fits"
                 hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
-                hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.ronchis), self.keywordDict['FCOMBINE'])
-                for i in range(len(cals.ronchis)):
-                    hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.ronchis[i])[1], self.keywordDict['FCMB'])
+                if len(cals.ronchis) > 1:
+                    hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.ronchis), self.keywordDict['FCOMBINE'])
+                    for i in range(len(cals.ronchis)):
+                        hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.ronchis[i])[1], self.keywordDict['FCMB'])
                 hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flatdarks), self.keywordDict['DCOMBINE'])
                 for i in range(len(cals.flatdarks)):
                     hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
                 hdul.flush()
             if not self.hasBPMExt(cals.ronchi_file):
                 iraf.imcopy(cals.bpm_file, cals.ronchi_file+"[BPM,type=mask,append]")
+                fits.delval(cals.ronchi_file, "DATALAB", extname='BPM')
+                fits.delval(cals.ronchi_file, "NSFLON1", extname='BPM')
+                fits.delval(cals.ronchi_file, "NSFLOF1", extname='BPM')
         except Exception:
             logging.error("Problem tagging {}.".format(cals.ronchi_file))
 
