@@ -4,6 +4,8 @@ python:
   - "2.7"
 install:
   - sudo apt update
+  - sudo dpkg --add-architecture i386
+  - sudo apt-get install -y libc6:i386 libz1:i386 libncurses5:i386 libbz2-1.0:i386 libuuid1:i386 libxcb1:i386 libxmu6 libxss1 libxft2
   # We do this conditionally because it saves us some downloading if the
   # version is the same.
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
@@ -25,8 +27,9 @@ install:
   - conda activate iraf27
   - conda install --yes numpy scipy astropy matplotlib pytest pip pathlib mock
   - conda install --yes -c astropy astroquery
+  - printf '\n\n' | mkiraf
   - python setup.py install
 
 script:
   - travis_wait 30 pytest nifty/tests/test_nifsSort.py
-  - pytest -s nifty/tests/test_nifsBaselineCalibration.py
+  - pytest -s -p no:warnings nifty/tests/test_nifsBaselineCalibration.py
