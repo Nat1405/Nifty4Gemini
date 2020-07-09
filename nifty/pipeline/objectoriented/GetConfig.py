@@ -60,6 +60,22 @@ class GetConfig(object):
 
         self.makeConfig()
 
+    def checkConfigExists(self, configFile):
+        """
+        Checks that a config file exists and if not, sets Nifty to use default configuration.
+        """
+        if not os.path.exists(configFile):
+            shutil.copy(os.path.join(self.RECIPES_PATH,'defaultConfig.cfg'), configFile)
+
+    def overwriteWithDefault(self, configFile):
+        """
+        Overwrites with default configuration.
+        """
+        if os.path.exists(configFile):
+            os.remove(configFile)
+        shutil.copy(os.path.join(self.RECIPES_PATH,'defaultConfig.cfg'), configFile)
+
+
     def makeConfig(self):
         """
         Make a configuration file.
@@ -72,6 +88,8 @@ class GetConfig(object):
         self.parser.add_argument('-i', '--interactive', dest = 'interactive', default = False, action = 'store_true', help = 'Create a config.cfg file interactively.')
         # Ability to repeat the last data reduction
         self.parser.add_argument('-r', '--repeat', dest = 'repeat', default = False, action = 'store_true', help = 'Repeat the last data reduction, loading saved reduction parameters from runtimeData/config.cfg.')
+        # Specify where downloads come from; either Gemini or CADC.
+        self.parser.add_argument('-s', '--data-source', dest = 'dataSource', default = 'GSA', action = 'store', help = 'Download raw data from the Canadian Astronomy Data Centre or the Gemini Science Archive. Valid options are "GSA" or "CADC".')
         # Ability to load a built-in configuration file (recipe)
         self.parser.add_argument('-l', '--recipe', dest = 'recipe', action = 'store', help = 'Load data reduction parameters from the a provided recipe. Default is default_input.cfg.')
         # Ability to load your own configuration file
@@ -85,12 +103,13 @@ class GetConfig(object):
         self.repeat = self.args.repeat
         self.fullReduction = self.args.fullReduction
         self.inputfile = self.args.inputfile
+        self.dataSource = self.args.dataSource
 
         if self.inputfile:
             # Load input from a .cfg file user specified at command line.
-            if self.inputfile != self.configFile and os.path.exists('./'+ self.configFile):
-                os.remove('./'+ self.configFile)
-                shutil.copy(self.inputfile, './'+ self.configFile)
+            if self.inputfile != self.configFile and os.path.exists(self.configFile):
+                os.remove(self.configFile)
+                shutil.copy(self.inputfile, self.configFile)
             logging.info("\nPipeline configuration for this data reduction was read from " + str(self.inputfile) + \
             ", and if not named config.cfg, copied to ./config.cfg.")
 
@@ -102,12 +121,9 @@ class GetConfig(object):
             self.fullReduction = interactiveNIFSInput()
 
         if self.fullReduction:
-            # Copy default input and use it
-            if os.path.exists('./' + self.configFile):
-                os.remove('./' + self.configFile)
-            shutil.copy(self.RECIPES_PATH+'defaultConfig.cfg', './'+ self.configFile)
+            self.overwriteWithDefault(self.configFile)
             # Update default config file with path to raw data or program ID.
-            with open('./' + self.configFile, 'r') as self.config_file:
+            with open(self.configFile, 'r') as self.config_file:
                 self.config = ConfigObj(self.config_file, unrepr=True)
                 self.sortConfig = self.config['sortConfig']
                 if self.fullReduction[0] == "G":
@@ -118,6 +134,19 @@ class GetConfig(object):
                     # Else treat it as a path.
                     self.sortConfig['program'] = ""
                     self.sortConfig['rawPath'] = self.fullReduction
-            with open('./' + self.configFile, 'w') as self.outfile:
+            with open(self.configFile, 'w') as self.outfile:
                 self.config.write(self.outfile)
             logging.info("\nData reduction parameters for this reduction were copied from recipes/defaultConfig.cfg to ./config.cfg.")
+
+        # If user selects a non-default data source, change it in the config file.
+        if self.dataSource != 'GSA':
+            try:
+                self.checkConfigExists(self.configFile)
+                with open(self.configFile, 'r') as self.config_file:
+                    self.config = ConfigObj(self.config_file, unrepr=True)
+                    self.config['sortConfig']['dataSource'] = self.dataSource
+                with open(self.configFile, 'w') as self.outfile:
+                    self.config.write(self.outfile)
+                logging.debug("Set dataSource option in config file.")
+            except:
+                raise ValueError("Failed to set dataSource option.")

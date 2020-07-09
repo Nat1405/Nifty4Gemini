@@ -31,6 +31,7 @@ POSSIBILITY OF SUCH DAMAGE."""
 
 import os, os.path
 import sys
+import logging
 from contextlib import closing
 from StringIO import StringIO
 import urllib2
@@ -38,7 +39,7 @@ import xml.dom.minidom as xmd
 import tarfile
 import hashlib
 
-def download_query_gemini(query, dirname='', cookieName=''):
+def download_query_gemini(program, dirname='', cookieName=''):
     """
     Perform a user-specified Gemini science archive query and save the files
     returned to a specified directory.
@@ -54,16 +55,25 @@ def download_query_gemini(query, dirname='', cookieName=''):
     which should be optimal as long as the archive isn't unreasonably large
     (to do: consider adding an option to write it to a temporary file).
 
+    # Modified 2020 by Nat Comeau
+
     Parameters
     ----------
 
-    query : str
-        The query URL (or just the path component) to request from the server.
+    program : str 
+        The Gemini program ID to request from the server.
 
     dirname : str, optional
         The (absolute or relative) directory path in which to place the files.
 
     """
+
+    # Modified 2020 by Nat Comeau
+    query = 'https://archive.gemini.edu/download/'+ str(program) + '/notengineering/NotFail/present/canonical'
+    logging.info('\nDownloading data from Gemini public archive to ./rawData. This will take a few minutes.')
+    logging.info('\nURL used for the download: \n' + str(query))
+
+
     checksum_fn = 'md5sums.txt'
     aux_fn = [checksum_fn, 'README.txt']
 

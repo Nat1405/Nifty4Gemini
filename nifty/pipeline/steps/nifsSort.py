@@ -44,7 +44,7 @@ from ..configobj.configobj import ConfigObj
 # TODO(nat): goodness, this is a lot of functions. It would be nice to split this up somehow.
 from ..nifsUtils import getUrlFiles, getFitsHeader, FitsKeyEntry, stripString, stripNumber, \
 datefmt, checkOverCopy, checkQAPIreq, checkDate, writeList, checkEntry, timeCalc, checkSameLengthFlatLists, \
-rewriteSciImageList, datefmt
+rewriteSciImageList, datefmt, downloadQueryCadc
 
 # Import NDMapper gemini data download, by James E.H. Turner.
 from ..downloadFromGeminiPublicArchive import download_query_gemini
@@ -127,6 +127,11 @@ def start():
         sortConfig = options['sortConfig']
         rawPath = sortConfig['rawPath']
         program = sortConfig['program']
+        # Backwards compatability with old config files
+        try:
+            dataSource = sortConfig['dataSource']
+        except KeyError:
+            dataSource = 'GSA'
         proprietaryCookie = sortConfig['proprietaryCookie']
         skyThreshold = sortConfig['skyThreshold']
         sortTellurics = sortConfig['sortTellurics']
@@ -141,17 +146,20 @@ def start():
 
     # Download data from gemini public archive to ./rawData/.
     if program:
-        url = 'https://archive.gemini.edu/download/'+ str(program) + '/notengineering/NotFail/present/canonical'
         if not os.path.exists('./rawData'):
             os.mkdir('./rawData')
-        logging.info('\nDownloading data from Gemini public archive to ./rawData. This will take a few minutes.')
-        logging.info('\nURL used for the download: \n' + str(url))
-        if proprietaryCookie:
-            download_query_gemini(url, './rawData', proprietaryCookie)
+        if dataSource == 'CADC':
+            logging.info('\nDownloading data from the CADC archive to ./rawData. This will take a few minutes.')
+            downloadQueryCadc(program, os.getcwd()+'/rawData')
+        elif dataSource == 'GSA':
+            if proprietaryCookie:
+                download_query_gemini(program, './rawData', proprietaryCookie)
+            else:
+                download_query_gemini(program, './rawData')
         else:
-            download_query_gemini(url, './rawData')
+            raise ValueError("Invalid dataSource in config file.")
+        
         rawPath = os.getcwd()+'/rawData'
-
 
     ############################################################################
     ############################################################################

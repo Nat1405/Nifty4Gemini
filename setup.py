@@ -22,12 +22,12 @@ PACKAGE_DATA = {
 
 setup(
     name=NAME,
-    version="1.0.1",
-    author='mbusserolle',
-    author_email='mbussero@gemini.edu',
+    version="2.0.0",
+    author='ncomeau',
+    author_email='ncomeau@uvic.ca',
     description='Gemini Instruments Data Reduction Framework.',
     long_description = README_TEXT,
-    url='http://www.gemini.edu',
+    url='https://github.com/Nat1405/Nifty4Gemini',
     license='MIT',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -41,7 +41,7 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
     ],
     keywords='Gemini NIFS nifs pipeline reduction data IRAF iraf PYRAF pyraf astronomy integral field spectroscopy ifs ifu',
-    python_requires='~=2.7',
+    python_requires='<=2.7.17',
     scripts=SCRIPTS, # TODO(nat): Update this to use entry_points instead of scripts for better cross-platform performance
     packages=find_packages(),
     package_data=PACKAGE_DATA
