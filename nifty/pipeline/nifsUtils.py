@@ -1430,8 +1430,9 @@ class ProductTagger:
                     hdu1['PRIMARY'].header['BPMFILE'] = hdu1['PRIMARY'].header['BPMFILE'].split(os.path.sep)[1]+'.pl'
                     if not self.hasCalExt(hdu1):
                         hdu1.append(cal_ext)
+                    hasBPMFlag = self.hasBPMExt(hdu1)
                     hdu1.flush()
-                if not self.hasBPMExt(product):
+                if not hasBPMFlag:
                     iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
                     fits.delval(product, "DATALAB", extname='BPM')
                     fits.delval(product, "NSFLON1", extname='BPM')
@@ -1463,8 +1464,7 @@ class ProductTagger:
     def hasCalExt(self, hdulist):
         return any([x.name == "CAL" for x in hdulist])
 
-    def hasBPMExt(self, file):
-        hdulist = astropy.io.fits.open(file)
+    def hasBPMExt(self, hdulist):
         return any([x.name == "BPM" for x in hdulist])
 
 
@@ -1529,8 +1529,9 @@ class CalibrationTagger:
                 hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flats), self.keywordDict['DCOMBINE'])
                 for i in range(len(cals.flatdarks)):
                     hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
+                hasBPMFlag = self.hasBPMExt(hdul)
                 hdul.flush()
-            if not self.hasBPMExt(cals.flat_file):
+            if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.flat_file+"[BPM,type=mask,append]")
                 fits.delval(cals.flat_file, "DATALAB", extname='BPM')
                 fits.delval(cals.flat_file, "NSFLON1", extname='BPM')
@@ -1555,8 +1556,9 @@ class CalibrationTagger:
                 hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.arcdarks), self.keywordDict['DCOMBINE'])
                 for i in range(len(cals.arcdarks)):
                     hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.arcdarks[i])[1], self.keywordDict['DCMB'])
+                hasBPMFlag = self.hasBPMExt(hdul)
                 hdul.flush()
-            if not self.hasBPMExt(cals.arc_file):
+            if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.arc_file+"[BPM,type=mask,append]")
                 fits.delval(cals.arc_file, "DATALAB", extname='BPM')
                 fits.delval(cals.arc_file, "NSFLON1", extname='BPM')
@@ -1582,8 +1584,9 @@ class CalibrationTagger:
                 hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flatdarks), self.keywordDict['DCOMBINE'])
                 for i in range(len(cals.flatdarks)):
                     hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
+                hasBPMFlag = self.hasBPMExt(hdul)
                 hdul.flush()
-            if not self.hasBPMExt(cals.ronchi_file):
+            if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.ronchi_file+"[BPM,type=mask,append]")
                 fits.delval(cals.ronchi_file, "DATALAB", extname='BPM')
                 fits.delval(cals.ronchi_file, "NSFLON1", extname='BPM')
@@ -1595,8 +1598,7 @@ class CalibrationTagger:
     def tagShift(self, cals):
         pass
 
-    def hasBPMExt(self, file):
-        hdulist = astropy.io.fits.open(file)
+    def hasBPMExt(self, hdulist):
         return any([x.name == "BPM" for x in hdulist])
 
     def parseList(self, listpath):
