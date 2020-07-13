@@ -231,25 +231,25 @@ def start(kind, telluricDirectoryList="", scienceDirectoryList=""):
         # Open and store the name of the reduced wavelength calibration arc frame from arclist in arc.
         arc = glob.glob('calibrations/*_arc.fits')[0].split('.')[0]
 
-        if os.path.exists(os.getcwd()+'/'+os.path.split(ronchi)[-1]+".fits"):
+        if os.path.exists(os.path.split(ronchi)[-1]+".fits"):
             if over:
                 iraf.delete(os.getcwd()+'/'+os.path.split(ronchi)[-1]+".fits")
                 # Copy the spatial calibration ronchi flat frame from Calibrations_grating to the observation directory.
-                shutil.copy(os.getcwd()+'/'+ronchi+'.fits', os.path.split(ronchi)[-1]+'.fits')
+                shutil.copy(ronchi+'.fits', os.path.split(ronchi)[-1]+'.fits')
             else:
                 print "\nOutput exists and -over not set - skipping copy of reduced ronchi"
         else:
-            shutil.copy(os.getcwd()+'/'+ronchi+'.fits', os.path.split(ronchi)[-1]+'.fits')
+            shutil.copy(ronchi+'.fits', os.path.split(ronchi)[-1]+'.fits')
 
-        if os.path.exists(os.getcwd()+'/'+os.path.split(arc)[-1]+".fits"):
+        if os.path.exists(os.path.split(arc)[-1]+".fits"):
             if over:
                 iraf.delete(os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
                 # Copy the spatial calibration arc flat frame from Calibrations_grating to the observation directory.
-                shutil.copy(os.getcwd()+'/'+arc+'.fits', os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
+                shutil.copy(arc+'.fits', os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
             else:
                 print "\nOutput exists and -over not set - skipping copy of reduced arc"
         else:
-            shutil.copy(os.getcwd()+'/'+arc+'.fits', os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
+            shutil.copy(arc+'.fits', os.getcwd()+'/'+os.path.split(arc)[-1]+".fits")
 
         ronchi = os.path.split(ronchi)[1]
         arc = os.path.split(arc)[1]
