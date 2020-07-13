@@ -1387,7 +1387,9 @@ class ProductTagger:
 
         cals = [shift, flat, arc, ronchi]
 
-        assert all([len(x) <= 1 for x in cals])
+        if not all([len(x) <= 1 for x in cals]):
+            logging.error("A calibration file wasn't found in {}.".format(scienceDir))
+            raise IOError()
 
         cals = [os.path.split(x[0])[-1] if x else "" for x in cals]
 
@@ -1610,9 +1612,8 @@ class CalibrationTagger:
 
         lines = [x.rstrip('\n') + '.fits' for x in lines]
 
-        assert len(lines) > 0
-
-        assert all(["N2" in x for x in lines])
+        if (not len(lines) > 0) or not all(["N2" in x for x in lines]):
+            logging.warning("List {} was either empty or did not have an 'N2' prefix in every line.".format(listpath))
 
         basePath = os.path.split(listpath)[0]
 
@@ -1625,9 +1626,10 @@ class CalibrationTagger:
             calfile = glob.glob(calpath)[0]
         except IndexError as e:
             logging.error("Calibration file {} not found.".format(calpath))
-            raise CalibrationsError()
+            raise IOError()
         with fits.open(calfile) as hdul:
-            assert len(hdul) > 0
+            if not len(hdul) > 0:
+                logging.error("hdulist {} appears to have no header units.".format(calfile))
         return calfile
 
 
