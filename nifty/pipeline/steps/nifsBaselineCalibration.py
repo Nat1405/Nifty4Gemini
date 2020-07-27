@@ -421,22 +421,20 @@ def makeFlat(flatlist, flatdarklist, calflat, flatdark, grating, over, log):
             iraf.gemcombine(listit(flatlist,"n"),output="gn"+calflat,fl_dqpr='yes', fl_vardq='yes',masktype="none",logfile=log)
 
     # Combine lamps off flat images, "n"+image+".fits". Output combined file will have name of the first darkflat file with "gn" prefix.
+    if len(flatdarklist) > 1:
+        flatdark_prefix = 'gn'
+    else:
+        flatdark_prefix = 'n'
     if os.path.exists('gn'+flatdark+'.fits'):
         if over:
             iraf.delete("gn"+flatdark+".fits")
             if len(flatdarklist) > 1:
                 iraf.gemcombine(listit(flatdarklist,"n"),output="gn"+flatdark,fl_dqpr='yes', fl_vardq='yes',masktype="none",logfile=log)
-                flatdark_prefix = 'gn'
-            else:
-                flatdark_prefix = 'n'
         else:
             print "\nOutput exists and -over- not set - skipping gemcombine of lamps on flats."
     else:
         if len(flatdarklist) > 1:
             iraf.gemcombine(listit(flatdarklist,"n"),output="gn"+flatdark,fl_dqpr='yes', fl_vardq='yes',masktype="none",logfile=log)
-            flatdark_prefix = 'gn'
-        else:
-            flatdark_prefix = 'n'
 
     # NSREDUCE on lamps on flat images, "gn"+calflat+".fits", to extract the slices and apply an approximate wavelength calibration.
     if os.path.exists('r'+flat_prefix+calflat+'.fits'):
