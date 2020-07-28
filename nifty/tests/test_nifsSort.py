@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import sys
 import logging
@@ -9,50 +10,20 @@ import tarfile
 import shutil
 
 import pytest
-# try:
-#     pyvo_OK = True
-#     from pyvo.dal import tap, adhoc
-#     from astroquery.cadc import Cadc, conf
-#     import astroquery.cadc.core as cadc_core
-# except ImportError:
-#     pyvo_OK = False
-#     pytest.skip("Install pyvo for the cadc module.", allow_module_level=True)
-# except AstropyDeprecationWarning as ex:
-#     if str(ex) == \
-#             'The astropy.vo.samp module has now been moved to astropy.samp':
-#         print('AstropyDeprecationWarning: {}'.format(str(ex)))
-#     else:
-#         raise ex
 
 import nifty.pipeline.steps.nifsSort as nifsSort
+from common import data_path, download_test_data
 
 try:
     from mock import Mock, patch, PropertyMock
 except ImportError:
     pytest.skip("Install mock for the cadc tests.", allow_module_level=True)
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'data')
-    return os.path.join(data_dir, filename)
-
-def download_test_data(path):
-    r = requests.get("https://github.com/nat1405/NiftyTestData/archive/master.tar.gz")
-    with open("NiftyTestData.tar.gz", 'wb') as fd:
-        for chunk in r.iter_content(chunk_size=128):
-            fd.write(chunk)
-    tar = tarfile.open("NiftyTestData.tar.gz")
-    tar.extractall()
-    tar.close()
-    shutil.move(os.path.join(os.getcwd(), "NiftyTestData-master", "GN-2014A-Q-85-all"), data_path("GN-2014A-Q-85-all"))
-    os.mkdir(data_path("GN-2014A-Q-85_one_day"))
-    for frame in glob.glob(os.path.join(data_path("GN-2014A-Q-85-all"), "N20140428*")):
-        shutil.copy(frame, data_path("GN-2014A-Q-85_one_day"))
-
 def test_makePythonLists_one_day(tmpdir):
     tmpdir = str(tmpdir)
     rawPath = data_path("GN-2014A-Q-85_one_day")
     if not os.path.exists(rawPath):
-        download_test_data(tmpdir)
+        download_test_data()
     allfilelist, arclist, arcdarklist, flatlist, flatdarklist, ronchilist, objectDateGratingList, obsidDateList, sciImageList = nifsSort.makePythonLists(rawPath, 2.0)
 
     result_list = ["N20140428S00"+str(i)+'.fits' for i in range(67,94)]
@@ -195,11 +166,9 @@ def test_sortScienceAndTelluric(tmpdir, monkeypatch):
     # Mock os.getcwd(), logging.info/warning/error()
     tmpdir = str(tmpdir)
     
-    def mocklog(foo):
-        pass
-    monkeypatch.setattr(logging, "info", mocklog)
-    monkeypatch.setattr(logging, "warning", mocklog)
-    monkeypatch.setattr(logging, "error", mocklog)
+    monkeypatch.setattr(logging, "info", lambda x: print("INFO:: " +  str(x)))
+    monkeypatch.setattr(logging, "warning", lambda x: print("WARNING:: " + str(x)))
+    monkeypatch.setattr(logging, "error", lambda x: print("ERROR:: " + str(x)))
     # os.cwd() mocking
     def mockcwd():
         return str(tmpdir)

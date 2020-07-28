@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import sys
 import logging
@@ -14,6 +15,7 @@ from pyraf import iraf, iraffunctions
 import pytest
 
 from nifty.pipeline.configobj.configobj import ConfigObj
+from common import data_path, download_test_data
 import nifty.pipeline.steps.nifsBaselineCalibration as nifsBaselineCalibration
 
 try:
@@ -21,11 +23,7 @@ try:
 except ImportError:
     pytest.skip("Install mock for the cadc tests.", allow_module_level=True)
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'data')
-    return os.path.join(data_dir, filename)
-
-def download_test_data(path):
+"""def download_test_data(path):
     r = requests.get("https://github.com/nat1405/NiftyTestData/archive/master.tar.gz")
     with open("NiftyTestData.tar.gz", 'wb') as fd:
         for chunk in r.iter_content(chunk_size=128):
@@ -37,6 +35,7 @@ def download_test_data(path):
     os.mkdir(data_path("GN-2014A-Q-85_one_day"))
     for frame in glob.glob(os.path.join(data_path("GN-2014A-Q-85-all"), "N20140428*")):
         shutil.copy(frame, data_path("GN-2014A-Q-85_one_day"))
+"""
 
 
 def test_nifsBaselineCalibrationQuick(tmpdir, monkeypatch):
@@ -57,18 +56,16 @@ def test_nifsBaselineCalibrationQuick(tmpdir, monkeypatch):
     
     os.chdir(os.path.join(tmpdir, 'Calibrations_K'))
     
-    def mocklog(foo):
-        pass
-    monkeypatch.setattr(logging, "info", mocklog)
-    monkeypatch.setattr(logging, "warning", mocklog)
-    monkeypatch.setattr(logging, "error", mocklog)
+    monkeypatch.setattr(logging, "info", lambda x: print("INFO:: " +  str(x)))
+    monkeypatch.setattr(logging, "warning", lambda x: print("WARNING:: " + str(x)))
+    monkeypatch.setattr(logging, "error", lambda x: print("ERROR:: " + str(x)))
 
     # Copy config file over and set it up for testing.
     RECIPES_PATH = pkg_resources.resource_filename('nifty', 'recipes/')
     shutil.copy(os.path.join(RECIPES_PATH, 'defaultConfig.cfg'), os.path.join(os.getcwd(), 'config.cfg'))
 
     if not os.path.exists(data_path('GN-2014A-Q-85-all')):
-        download_test_data(data_path('GN-2014A-Q-85-all'))
+        download_test_data()
 
     with open('config.cfg') as config_file:
         config = ConfigObj(config_file, unrepr=True)
@@ -166,7 +163,7 @@ def test_nifsBaselineCalibration(tmpdir, monkeypatch):
     shutil.copy(os.path.join(RECIPES_PATH, 'defaultConfig.cfg'), os.path.join(os.getcwd(), 'config.cfg'))
 
     if not os.path.exists(data_path('GN-2014A-Q-85-all')):
-        download_test_data(data_path('GN-2014A-Q-85-all'))
+        download_test_data()
 
     with open('config.cfg') as config_file:
         config = ConfigObj(config_file, unrepr=True)
