@@ -17,11 +17,14 @@ import pytest
 from nifty.pipeline.configobj.configobj import ConfigObj
 from common import data_path, download_test_data
 import nifty.pipeline.steps.nifsBaselineCalibration as nifsBaselineCalibration
+from nifty.pipeline.nifsUtils import CalibrationTagger
 
 try:
     from mock import Mock, patch, PropertyMock
 except ImportError:
     pytest.skip("Install mock for the cadc tests.", allow_module_level=True)
+
+PROVENANCE_EXT_NAME = 'PROVENANCE'
 
 """def download_test_data(path):
     r = requests.get("https://github.com/nat1405/NiftyTestData/archive/master.tar.gz")
@@ -124,15 +127,30 @@ def test_nifsBaselineCalibrationQuick(tmpdir, monkeypatch):
 
     nifsBaselineCalibration.start()
 
+    tagger = CalibrationTagger(os.getcwd())
+
     with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'rnN20140428S0169_flat.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-001-RN-FLAT'
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-001'
+        assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
+                ('N20140428S0169.fits', tagger.extensionDescriptions['MEMBERFLAT'], 'member'),
+                ('N20140428S0174.fits', tagger.extensionDescriptions['INPUTDARK'], 'input')
+        ]
 
     with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'rnN20140428S0181_ronchi.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-013-RN-RONCHI'
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-013'
+        assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
+                ('N20140428S0181.fits', tagger.extensionDescriptions['MEMBERRONCHI'], 'member'),
+                ('N20140428S0174.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('rnN20140428S0169_flat.fits', tagger.extensionDescriptions['INPUTFLAT'], 'input')
+        ]
 
     with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'wrnN20140428S0085_arc.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-001-WRN-ARC'
-
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-001'
+        assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
+                ('N20140428S0085.fits', tagger.extensionDescriptions['MEMBERARC'], 'member'),
+                ('N20140428S0179.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('rnN20140428S0169_flat.fits', tagger.extensionDescriptions['INPUTFLAT'], 'input')
+        ]
    
 def test_nifsBaselineCalibration(tmpdir, monkeypatch):
     """
@@ -195,7 +213,9 @@ def test_nifsBaselineCalibration(tmpdir, monkeypatch):
     ]
 
     arclist = [
-        'N20140428S0085.fits'
+        'N20140428S0085.fits',
+        'N20140503S0161.fits' # Only added to simulate multiple arcs in an arc observation
+
     ]
 
     arcdarklist = [
@@ -232,14 +252,50 @@ def test_nifsBaselineCalibration(tmpdir, monkeypatch):
 
     nifsBaselineCalibration.start()
 
+    tagger = CalibrationTagger(os.getcwd())
+
     with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'rgnN20140428S0169_flat.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-001-RGN-FLAT'
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-001-FLAT'
+        assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
+                ('N20140428S0169.fits', tagger.extensionDescriptions['MEMBERFLAT'], 'member'),
+                ('N20140428S0170.fits', tagger.extensionDescriptions['MEMBERFLAT'], 'member'),
+                ('N20140428S0171.fits', tagger.extensionDescriptions['MEMBERFLAT'], 'member'),
+                ('N20140428S0172.fits', tagger.extensionDescriptions['MEMBERFLAT'], 'member'),
+                ('N20140428S0173.fits', tagger.extensionDescriptions['MEMBERFLAT'], 'member'),
+                
+                ('N20140428S0174.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0175.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0176.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0177.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0178.fits', tagger.extensionDescriptions['INPUTDARK'], 'input')
+        ]
 
     with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'rgnN20140428S0181_ronchi.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-013-RGN-RONCHI'
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-16-013-RONCHI'
+        assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
+                ('N20140428S0181.fits', tagger.extensionDescriptions['MEMBERRONCHI'], 'member'),
+                ('N20140428S0182.fits', tagger.extensionDescriptions['MEMBERRONCHI'], 'member'),
+                
+                ('N20140428S0174.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0175.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0176.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0177.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0178.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
 
-    with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'wrnN20140428S0085_arc.fits')) as hdul:
-        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-001-WRN-ARC'
+                ('rgnN20140428S0169_flat.fits', tagger.extensionDescriptions['INPUTFLAT'], 'input')
+        ]
+
+    with fits.open(os.path.join(tmpdir, 'Calibrations_K', 'wrgnN20140428S0085_arc.fits')) as hdul:
+        assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-001-ARC'
+        assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
+                ('N20140428S0085.fits', tagger.extensionDescriptions['MEMBERARC'], 'member'),
+                ('N20140503S0161.fits', tagger.extensionDescriptions['MEMBERARC'], 'member'),
+                
+                ('N20140428S0179.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+                ('N20140428S0180.fits', tagger.extensionDescriptions['INPUTDARK'], 'input'),
+
+                ('rgnN20140428S0169_flat.fits', tagger.extensionDescriptions['INPUTFLAT'], 'input')
+        ]
 
 
 

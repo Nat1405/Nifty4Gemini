@@ -1487,6 +1487,14 @@ class CalibrationTagger:
                         "FLTFILE":  "Processed flat used in processing"
         }
 
+        self.extensionDescriptions = {
+                        "INPUTFLAT": "Processed flat field frame.",
+                        "INPUTDARK": "Raw dark frame.",
+                        "MEMBERFLAT": "Raw flat field frame.",
+                        "MEMBERRONCHI": "Raw ronchi spatial correction frame.",
+                        "MEMBERARC": "Raw arc frame."
+        }
+
     def run(self):
         """
         Tags calibrations with header keywords and extensions.
