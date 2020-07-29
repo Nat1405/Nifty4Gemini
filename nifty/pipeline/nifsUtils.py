@@ -1471,6 +1471,22 @@ class ProductTagger:
 
 
 class CalibrationTagger:
+    extensionDescriptions = {
+                    "INPUTFLAT": "Processed flat field frame.",
+                    "INPUTDARK": "Raw dark frame.",
+                    "MEMBERFLAT": "Raw flat field frame.",
+                    "MEMBERRONCHI": "Raw ronchi spatial correction frame.",
+                    "MEMBERARC": "Raw arc frame."
+    }
+
+    extensionColumnNames = {
+                    "label": "Filename",
+                    "description": "Description",
+                    "type": "Type (member or input)"
+    }
+
+    provenanceExtensionName = "PROVENANCE"
+
     def __init__(self, calDir):
         user_clobber=iraf.envget("clobber")
         iraf.reset(clobber='yes')
@@ -1485,20 +1501,6 @@ class CalibrationTagger:
                         "DCMB":     "Dark frame used in processing",
                         "SHFILE":   "File supplying mdf shift in processing",
                         "FLTFILE":  "Processed flat used in processing"
-        }
-
-        self.extensionDescriptions = {
-                        "INPUTFLAT": "Processed flat field frame.",
-                        "INPUTDARK": "Raw dark frame.",
-                        "MEMBERFLAT": "Raw flat field frame.",
-                        "MEMBERRONCHI": "Raw ronchi spatial correction frame.",
-                        "MEMBERARC": "Raw arc frame."
-        }
-
-        self.extensionColumnNames = {
-                        "label": "Filename",
-                        "description": "Description",
-                        "type": "Type (member or input)"
         }
 
     def run(self):
@@ -1530,7 +1532,8 @@ class CalibrationTagger:
         self.tagRonchi(cals)
         self.tagShift(cals)
 
-    def makeProvenance(self, labels, descriptions, types):
+    @staticmethod
+    def makeProvenance(labels, descriptions, types):
         if not (len(labels) == len(descriptions)) and (len(descriptions) == len(types)):
             logging.error("Error making provenance extension, lengths of labels/descriptions/types " \
                         "should have been equal and were {}, {}, {}.".format(len(labels), len(descriptions), len(types)))
@@ -1539,13 +1542,13 @@ class CalibrationTagger:
         a1 = np.array(labels)
         a2 = np.array(descriptions)
         a3 = np.array(types)
-        col1 = astropy.io.fits.Column(name=self.extensionColumnNames['label'], format='64A', array=a1)
-        col2 = astropy.io.fits.Column(name=self.extensionColumnNames['description'], format='64A', array=a2)
-        col3 = astropy.io.fits.Column(name=self.extensionColumnNames['type'], format='64A', array=a3)
+        col1 = astropy.io.fits.Column(name=CalibrationTagger.extensionColumnNames['label'], format='64A', array=a1)
+        col2 = astropy.io.fits.Column(name=CalibrationTagger.extensionColumnNames['description'], format='64A', array=a2)
+        col3 = astropy.io.fits.Column(name=CalibrationTagger.extensionColumnNames['type'], format='64A', array=a3)
 
         cols = astropy.io.fits.ColDefs([col1, col2, col3])
 
-        hdu = astropy.io.fits.BinTableHDU.from_columns(cols, name="PROVENANCE")
+        hdu = astropy.io.fits.BinTableHDU.from_columns(cols, name=CalibrationTagger.provenanceExtensionName)
 
         return hdu
 
@@ -1561,13 +1564,13 @@ class CalibrationTagger:
             filenames.extend(cals.flatdarks)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [self.extensionDescriptions['MEMBERFLAT']]*len(cals.flats)
-            descriptions.extend([self.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERFLAT']]*len(cals.flats)
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
             
             types = ['member']*len(cals.flats)
             types.extend(['input']*len(cals.flatdarks))
 
-            provenance_extension = self.makeProvenance(filenames, descriptions, types)
+            provenance_extension = CalibrationTagger.makeProvenance(filenames, descriptions, types)
             
             with fits.open(cals.flat_file, mode="update") as hdul:
                 # Put updates to processed flat headers here
@@ -1598,15 +1601,15 @@ class CalibrationTagger:
             filenames.append(cals.flat_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [self.extensionDescriptions['MEMBERARC']]*len(cals.arcs)
-            descriptions.extend([self.extensionDescriptions['INPUTDARK']]*len(cals.arcdarks))
-            descriptions.append(self.extensionDescriptions['INPUTFLAT'])
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERARC']]*len(cals.arcs)
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTDARK']]*len(cals.arcdarks))
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTFLAT'])
             
             types = ['member']*len(cals.arcs)
             types.extend(['input']*len(cals.arcdarks))
             types.append('input')
 
-            provenance_extension = self.makeProvenance(filenames, descriptions, types)
+            provenance_extension = CalibrationTagger.makeProvenance(filenames, descriptions, types)
             
             with fits.open(cals.arc_file, mode="update") as hdul:
                 # Put updates to processed arc headers here
@@ -1639,15 +1642,15 @@ class CalibrationTagger:
             filenames.append(cals.flat_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [self.extensionDescriptions['MEMBERRONCHI']]*len(cals.ronchis)
-            descriptions.extend([self.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
-            descriptions.append(self.extensionDescriptions['INPUTFLAT'])
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERRONCHI']]*len(cals.ronchis)
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTFLAT'])
             
             types = ['member']*len(cals.ronchis)
             types.extend(['input']*len(cals.flatdarks))
             types.append('input')
 
-            provenance_extension = self.makeProvenance(filenames, descriptions, types)
+            provenance_extension = CalibrationTagger.makeProvenance(filenames, descriptions, types)
             
             with fits.open(cals.ronchi_file, mode="update") as hdul:
                 # Put updates to processed ronchi headers here
