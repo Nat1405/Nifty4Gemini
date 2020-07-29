@@ -27,6 +27,7 @@ install:
   - conda activate iraf27
   - conda install --yes numpy scipy astropy matplotlib pytest pip pathlib mock
   - conda install --yes -c astropy astroquery
+  - pip install pyvo astroquery
   - printf '\n\n' | mkiraf
   - python setup.py install
 
