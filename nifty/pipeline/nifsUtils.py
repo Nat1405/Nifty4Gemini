@@ -1495,6 +1495,12 @@ class CalibrationTagger:
                         "MEMBERARC": "Raw arc frame."
         }
 
+        self.extensionColumnNames = {
+                        "label": "Filename",
+                        "description": "Description",
+                        "type": "Type (member or input)"
+        }
+
     def run(self):
         """
         Tags calibrations with header keywords and extensions.
@@ -1524,22 +1530,52 @@ class CalibrationTagger:
         self.tagRonchi(cals)
         self.tagShift(cals)
 
+    def makeProvenance(self, labels, descriptions, types):
+        if not (len(labels) == len(descriptions)) and (len(descriptions) == len(types)):
+            logging.error("Error making provenance extension, lengths of labels/descriptions/types " \
+                        "should have been equal and were {}, {}, {}.".format(len(labels), len(descriptions), len(types)))
+            raise IOError()
+
+        a1 = np.array(labels)
+        a2 = np.array(descriptions)
+        a3 = np.array(types)
+        col1 = astropy.io.fits.Column(name=self.extensionColumnNames['label'], format='64A', array=a1)
+        col2 = astropy.io.fits.Column(name=self.extensionColumnNames['description'], format='64A', array=a2)
+        col3 = astropy.io.fits.Column(name=self.extensionColumnNames['type'], format='64A', array=a3)
+
+        cols = astropy.io.fits.ColDefs([col1, col2, col3])
+
+        hdu = astropy.io.fits.BinTableHDU.from_columns(cols, name="PROVENANCE")
+
+        return hdu
+
 
     def tagFlat(self, cals):
+        """ Flats contain:
+            - raw flats as members
+            - raw darks as inputs
+        """
+
         try:
+            filenames = cals.flats[:]
+            filenames.extend(cals.flatdarks)
+            filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
+            
+            descriptions = [self.extensionDescriptions['MEMBERFLAT']]*len(cals.flats)
+            descriptions.extend([self.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
+            
+            types = ['member']*len(cals.flats)
+            types.extend(['input']*len(cals.flatdarks))
+
+            provenance_extension = self.makeProvenance(filenames, descriptions, types)
+            
             with fits.open(cals.flat_file, mode="update") as hdul:
-                prefix = os.path.split(cals.flat_file)[1].split('N2')[0]
-                if prefix.upper()+"-FLAT" not in hdul['PRIMARY'].header['DATALAB']:
-                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-FLAT"
-                hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
-                if len(cals.flats) > 1:
-                    hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.flats), self.keywordDict['FCOMBINE'])
-                    for i in range(len(cals.flats)):
-                        hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.flats[i])[1], self.keywordDict['FCMB'])
-                hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flats), self.keywordDict['DCOMBINE'])
-                for i in range(len(cals.flatdarks)):
-                    hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
+                # Put updates to processed flat headers here
+                if len(cals.flats) > 1 and "FLAT" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] += "-FLAT"
+
                 hasBPMFlag = self.hasBPMExt(hdul)
+                hdul.append(provenance_extension)
                 hdul.flush()
             if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.flat_file+"[BPM,type=mask,append]")
@@ -1547,26 +1583,41 @@ class CalibrationTagger:
                 fits.delval(cals.flat_file, "NSFLON1", extname='BPM')
                 fits.delval(cals.flat_file, "NSFLOF1", extname='BPM')
         except Exception:
-            logging.error("Problem tagging {}.".format(cals.flat_file))    
+            logging.error("Problem tagging {}.".format(cals.flat_file))
             
 
     def tagArc(self, cals):
+        """Arcs contain:
+            - Raw arcs as members
+            - Raw darks as inputs
+            - Processed flat as input 
+        """
         try:
+            filenames = cals.arcs[:]
+            filenames.extend(cals.arcdarks)
+            filenames.append(cals.flat_file)
+            filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
+            
+            descriptions = [self.extensionDescriptions['MEMBERARC']]*len(cals.arcs)
+            descriptions.extend([self.extensionDescriptions['INPUTDARK']]*len(cals.arcdarks))
+            descriptions.append(self.extensionDescriptions['INPUTFLAT'])
+            
+            types = ['member']*len(cals.arcs)
+            types.extend(['input']*len(cals.arcdarks))
+            types.append('input')
+
+            provenance_extension = self.makeProvenance(filenames, descriptions, types)
+            
             with fits.open(cals.arc_file, mode="update") as hdul:
-                prefix = os.path.split(cals.arc_file)[1].split('N2')[0]
-                if prefix.upper()+"-ARC" not in hdul['PRIMARY'].header['DATALAB']:
-                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-ARC"
-                if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
-                    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
-                hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
-                if len(cals.arcs) > 1:
-                    hdul['PRIMARY'].header['ACOMBINE'] = (len(cals.arcs), self.keywordDict['ACOMBINE'])
-                    for i in range(len(cals.arcs)):
-                        hdul['PRIMARY'].header['ACMB'+str(i+1)] = (os.path.split(cals.arcs[i])[1], self.keywordDict['ACMB'])
-                hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.arcdarks), self.keywordDict['DCOMBINE'])
-                for i in range(len(cals.arcdarks)):
-                    hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.arcdarks[i])[1], self.keywordDict['DCMB'])
+                # Put updates to processed arc headers here
+                if len(cals.arcs) > 1 and "ARC" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] += "-ARC"
+
+                #if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
+                #    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
+
                 hasBPMFlag = self.hasBPMExt(hdul)
+                hdul.append(provenance_extension)
                 hdul.flush()
             if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.arc_file+"[BPM,type=mask,append]")
@@ -1574,27 +1625,42 @@ class CalibrationTagger:
                 fits.delval(cals.arc_file, "NSFLON1", extname='BPM')
                 fits.delval(cals.arc_file, "NSFLOF1", extname='BPM')
         except Exception:
-            logging.error("Problem tagging {}.".format(cals.arc_file))
+            logging.error("Problem tagging {}.".format(cals.arc_file))    
 
     def tagRonchi(self, cals):
+        """Ronchis contain:
+            - Raw ronchis as members
+            - Raw darks as inputs
+            - Processed flat as input
+        """
         try:
+            filenames = cals.ronchis[:]
+            filenames.extend(cals.flatdarks)
+            filenames.append(cals.flat_file)
+            filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
+            
+            descriptions = [self.extensionDescriptions['MEMBERRONCHI']]*len(cals.ronchis)
+            descriptions.extend([self.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
+            descriptions.append(self.extensionDescriptions['INPUTFLAT'])
+            
+            types = ['member']*len(cals.ronchis)
+            types.extend(['input']*len(cals.flatdarks))
+            types.append('input')
+
+            provenance_extension = self.makeProvenance(filenames, descriptions, types)
+            
             with fits.open(cals.ronchi_file, mode="update") as hdul:
-                prefix = os.path.split(cals.ronchi_file)[1].split('N2')[0]
-                if prefix.upper()+"-RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
-                    hdul['PRIMARY'].header['DATALAB'] = hdul['PRIMARY'].header['DATALAB']+'-'+prefix.upper()+"-RONCHI"
-                if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
-                    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
-                if ".fits" not in hdul['PRIMARY'].header['DARKIMAG']:
-                    hdul['PRIMARY'].header['DARKIMAG'] = hdul['PRIMARY'].header['DARKIMAG']+".fits"
-                hdul['PRIMARY'].header['SHFILE'] = (os.path.split(cals.shift_file)[1], self.keywordDict['SHFILE'])
-                if len(cals.ronchis) > 1:
-                    hdul['PRIMARY'].header['FCOMBINE'] = (len(cals.ronchis), self.keywordDict['FCOMBINE'])
-                    for i in range(len(cals.ronchis)):
-                        hdul['PRIMARY'].header['FCMB'+str(i+1)] = (os.path.split(cals.ronchis[i])[1], self.keywordDict['FCMB'])
-                hdul['PRIMARY'].header['DCOMBINE'] = (len(cals.flatdarks), self.keywordDict['DCOMBINE'])
-                for i in range(len(cals.flatdarks)):
-                    hdul['PRIMARY'].header['DCMB'+str(i+1)] = (os.path.split(cals.flatdarks[i])[1], self.keywordDict['DCMB'])
+                # Put updates to processed ronchi headers here
+                if len(cals.ronchis) > 1 and "RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] += "-RONCHI"
+
+                #if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
+                #    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
+                #if ".fits" not in hdul['PRIMARY'].header['DARKIMAG']:
+                #    hdul['PRIMARY'].header['DARKIMAG'] = hdul['PRIMARY'].header['DARKIMAG']+".fits"
+                
                 hasBPMFlag = self.hasBPMExt(hdul)
+                hdul.append(provenance_extension)
                 hdul.flush()
             if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.ronchi_file+"[BPM,type=mask,append]")
