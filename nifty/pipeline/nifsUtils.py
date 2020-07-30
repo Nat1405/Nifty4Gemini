@@ -1691,6 +1691,7 @@ class CalibrationTagger:
                 # Put updates to processed ronchi headers here
                 if len(cals.ronchis) > 1 and "RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
                     hdul['PRIMARY'].header['DATALAB'] += "-RONCHI"
+                    hdul['PRIMARY'].header['OBSTYPE'] = "RONCHI"
 
                 #if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
                 #    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
