@@ -301,6 +301,7 @@ def start(calibrationDirectoryList=""):
         # Copy calibrations here b/c need to tag them before copying them to science dirs.
         copyCalibration(glob.glob('*_shift.fits')[0], glob.glob('*_shift.fits')[0], grating, over)
         copyCalibration(glob.glob("*_flat.fits")[0], glob.glob("*_flat.fits")[0], grating, over)
+        copyCalibration(glob.glob('*_dark.fits')[0], glob.glob('*_dark.fits')[0], grating, over)
         copyCalibration(glob.glob("*_sflat.fits")[0], glob.glob("*_sflat.fits")[0], grating, over)
         copyCalibration(glob.glob("*_sflat_bpm.pl")[0], glob.glob("*_sflat_bpm.pl")[0], grating, over)
         copyCalibration(glob.glob("*_arc.fits")[0], glob.glob("*_arc.fits")[0], grating, over)
