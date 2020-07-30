@@ -34,3 +34,4 @@ install:
 script:
   - travis_wait 30 pytest nifty/tests/test_nifsSort.py
   - pytest -s -p no:warnings nifty/tests/test_nifsBaselineCalibration.py
+  - pytest -s -p no:warnings nifty/tests/test_fullReduction.py

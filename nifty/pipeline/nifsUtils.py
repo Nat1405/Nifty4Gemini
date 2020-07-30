@@ -1427,9 +1427,9 @@ class ProductTagger:
         for product in products:
             try:
                 with astropy.io.fits.open(product, mode='update') as hdu1:
-                    hdu1['PRIMARY'].header['DATALAB'] = hdu1['PRIMARY'].header['DATALAB']+'-'+prefix.upper()
-                    hdu1['PRIMARY'].header['FLATIMAG'] = hdu1['PRIMARY'].header['FLATIMAG'].split(os.path.sep)[1]+'.fits'
-                    hdu1['PRIMARY'].header['BPMFILE'] = hdu1['PRIMARY'].header['BPMFILE'].split(os.path.sep)[1]+'.pl'
+                    #hdu1['PRIMARY'].header['DATALAB'] = hdu1['PRIMARY'].header['DATALAB']+'-'+prefix.upper()
+                    #hdu1['PRIMARY'].header['FLATIMAG'] = hdu1['PRIMARY'].header['FLATIMAG'].split(os.path.sep)[1]+'.fits'
+                    #hdu1['PRIMARY'].header['BPMFILE'] = hdu1['PRIMARY'].header['BPMFILE'].split(os.path.sep)[1]+'.pl'
                     if not self.hasCalExt(hdu1):
                         hdu1.append(cal_ext)
                     hasBPMFlag = self.hasBPMExt(hdu1)
@@ -1478,10 +1478,12 @@ class CalibrationTagger:
                     "INPUTRAWDARK": "Raw dark frame.",
                     "INPUTRONCHI": "Processed ronchi spatial calibration frame.",
                     "INPUTARC": "Processed arc frame.",
+                    "INPUTSKY": "Raw sky frame used for sky subtraction.",
                     "MEMBERFLAT": "Raw flat field frame.",
                     "MEMBERDARK": "Raw dark frame.",
                     "MEMBERRONCHI": "Raw ronchi spatial correction frame.",
-                    "MEMBERARC": "Raw arc frame."
+                    "MEMBERARC": "Raw arc frame.",
+                    "MEMBERSCIENCE": "Raw science frame."
     }
 
     extensionColumnNames = {
