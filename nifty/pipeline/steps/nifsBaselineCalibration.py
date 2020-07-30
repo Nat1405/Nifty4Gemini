@@ -749,13 +749,13 @@ def makeRonchi(ronchilist, ronchiflat, calflat, grating, over, flatdark, log):
             if over:
                 iraf.delete("n"+image+'.fits')
                 iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat+"_shift", \
-                               bpm="rgn"+calflat+"_sflat_bpm.pl", fl_vardq="yes",fl_corr="no",fl_nonl="no", \
+                               bpm=glob.glob("*_sflat_bpm.pl")[0], fl_vardq="yes",fl_corr="no",fl_nonl="no", \
                                logfile=log)
             else:
                 print "\nOutput file exists and -over not set - skipping prepare of ronchis"
         else:
             iraf.nfprepare(image,rawpath=".", shiftimage="s"+calflat+"_shift", \
-                           bpm="rgn"+calflat+"_sflat_bpm.pl", fl_vardq="yes",fl_corr="no",fl_nonl="no", \
+                           bpm=glob.glob("*_sflat_bpm.pl")[0], fl_vardq="yes",fl_corr="no",fl_nonl="no", \
                            logfile=log)
     ronchilist = checkLists(ronchilist, '.', 'n', '.fits', outlist='ronchilist')
 
