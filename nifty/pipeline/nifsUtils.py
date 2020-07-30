@@ -1473,8 +1473,13 @@ class ProductTagger:
 class CalibrationTagger:
     extensionDescriptions = {
                     "INPUTFLAT": "Processed flat field frame.",
-                    "INPUTDARK": "Raw dark frame.",
+                    "INPUTRAWFLAT": "Raw flat field frame.",
+                    "INPUTDARK": "Processed dark frame.",
+                    "INPUTRAWDARK": "Raw dark frame.",
+                    "INPUTRONCHI": "Processed ronchi spatial calibration frame.",
+                    "INPUTARC": "Processed arc frame.",
                     "MEMBERFLAT": "Raw flat field frame.",
+                    "MEMBERDARK": "Raw dark frame.",
                     "MEMBERRONCHI": "Raw ronchi spatial correction frame.",
                     "MEMBERARC": "Raw arc frame."
     }
@@ -1519,6 +1524,7 @@ class CalibrationTagger:
             cals.arcdarks = self.parseList(os.path.join(self.calDir, 'arcdarklist'))
             cals.ronchis = self.parseList(os.path.join(self.calDir, 'ronchilist'))
             cals.flat_file = self.getCalFile(os.path.join(self.calDir, '*_flat.fits'))
+            cals.dark_file = self.getCalFile(os.path.join(self.calDir, '*_dark.fits'))
             cals.shift_file = self.getCalFile(os.path.join(self.calDir, '*_shift.fits'))
             cals.arc_file = self.getCalFile(os.path.join(self.calDir, '*_arc.fits'))
             cals.ronchi_file = self.getCalFile(os.path.join(self.calDir, '*_ronchi.fits'))
@@ -1528,6 +1534,7 @@ class CalibrationTagger:
             return
 
         self.tagFlat(cals)
+        self.tagDark(cals)
         self.tagArc(cals)
         self.tagRonchi(cals)
         self.tagShift(cals)
@@ -1556,19 +1563,19 @@ class CalibrationTagger:
     def tagFlat(self, cals):
         """ Flats contain:
             - raw flats as members
-            - raw darks as inputs
+            - Processed dark as input
         """
 
         try:
             filenames = cals.flats[:]
-            filenames.extend(cals.flatdarks)
+            filenames.append(cals.dark_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
             descriptions = [CalibrationTagger.extensionDescriptions['MEMBERFLAT']]*len(cals.flats)
-            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTDARK'])
             
             types = ['member']*len(cals.flats)
-            types.extend(['input']*len(cals.flatdarks))
+            types.append('input')
 
             provenance_extension = CalibrationTagger.makeProvenance(filenames, descriptions, types)
             
@@ -1587,7 +1594,35 @@ class CalibrationTagger:
                 fits.delval(cals.flat_file, "NSFLOF1", extname='BPM')
         except Exception:
             logging.error("Problem tagging {}.".format(cals.flat_file))
+    
+    def tagDark(self, cals):
+        """ Darks contain:
+            - raw flat darks as members
+            - raw lamps-on flats as inputs
+        """
+
+        try:
+            filenames = cals.flatdarks[:]
+            filenames.extend(cals.flats)
+            filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERDARK']]*len(cals.flatdarks)
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTRAWFLAT']]*len(cals.flats))
+            
+            types = ['member']*len(cals.flatdarks)
+            types.extend(['input']*len(cals.flats))
+
+            provenance_extension = CalibrationTagger.makeProvenance(filenames, descriptions, types)
+            
+            with fits.open(cals.dark_file, mode="update") as hdul:
+                # Put updates to processed dark headers here
+                if len(cals.flatdarks) > 1 and "DARK" not in hdul['PRIMARY'].header['DATALAB']:
+                    hdul['PRIMARY'].header['DATALAB'] += "-DARK"
+
+                hdul.append(provenance_extension)
+                hdul.flush()
+        except Exception:
+            logging.error("Problem tagging {}.".format(cals.dark_file))     
 
     def tagArc(self, cals):
         """Arcs contain:
@@ -1602,7 +1637,7 @@ class CalibrationTagger:
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
             descriptions = [CalibrationTagger.extensionDescriptions['MEMBERARC']]*len(cals.arcs)
-            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTDARK']]*len(cals.arcdarks))
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTRAWDARK']]*len(cals.arcdarks))
             descriptions.append(CalibrationTagger.extensionDescriptions['INPUTFLAT'])
             
             types = ['member']*len(cals.arcs)
@@ -1633,21 +1668,21 @@ class CalibrationTagger:
     def tagRonchi(self, cals):
         """Ronchis contain:
             - Raw ronchis as members
-            - Raw darks as inputs
+            - Processed dark as input
             - Processed flat as input
         """
         try:
             filenames = cals.ronchis[:]
-            filenames.extend(cals.flatdarks)
+            filenames.append(cals.dark_file)
             filenames.append(cals.flat_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
             descriptions = [CalibrationTagger.extensionDescriptions['MEMBERRONCHI']]*len(cals.ronchis)
-            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTDARK']]*len(cals.flatdarks))
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTDARK'])
             descriptions.append(CalibrationTagger.extensionDescriptions['INPUTFLAT'])
             
             types = ['member']*len(cals.ronchis)
-            types.extend(['input']*len(cals.flatdarks))
+            types.append('input')
             types.append('input')
 
             provenance_extension = CalibrationTagger.makeProvenance(filenames, descriptions, types)
