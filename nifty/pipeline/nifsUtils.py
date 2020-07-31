@@ -1357,12 +1357,45 @@ class ProductTagger:
     def run(self):
         """
         Tags products (and updates datalabels) in science directories with an extra extension that identifies calibrations.
+        Products are assumed to ALWAYS have:
+            - input flat
+            - input ronchi
+            - input arc
+        And sometimes have:
+            - A sky frame.
         """
         for scienceDir in self.scienceDirectories:  
             try:
-                cal_ext = self.makeCalExt(scienceDir)
+                # Sky frames make things a bit annoying because each product has a different sky frame,
+                # So we need slightly distinct Provenance extensions for each product.
+
+                # Common to all provenance extensions
+                flat = glob.glob(os.path.join(scienceDir, 'calibrations', '*_flat.fits'))[0]
+                ronchi = glob.glob(os.path.join(scienceDir, 'calibrations', '*_ronchi.fits'))[0]
+                arc = glob.glob(os.path.join(scienceDir, 'calibrations', '*_arc.fits'))[0]
+                
+                filenames = [flat, ronchi, arc]
+                filenames = [x.split(os.path.sep)[-1] for x in filenames]
+                descriptions = [
+                        CalibrationTagger.extensionDescriptions['INPUTFLAT'],
+                        CalibrationTagger.extensionDescriptions['INPUTRONCHI'],
+                        CalibrationTagger.extensionDescriptions['INPUTARC']
+                ]
+                types = ['input', 'input', 'input']
+
+                # Now do product specific provenance, by looping over science frame list and sky frame list
+                scienceFrames = CalibrationTagger.parseList(os.path.join(scienceDir, 'scienceFrameList'))
+                scienceFrames = [x.split(os.path.sep)[-1] for x in scienceFrames]
+                skyFrames = [None]*len(scienceFrames)
+                if os.path.exists(os.path.join(scienceDir, 'skyFrameList')):
+                    skyFrames = CalibrationTagger.parseList(os.path.join(scienceDir, 'skyFrameList'))
+                    skyFrames = [x.split(os.path.sep)[-1] for x in skyFrames]
+                    if len(scienceFrames) != len(skyFrames):
+                        logging.error('scienceFrameList was a different length than skyFrameList in {}.'.format(scienceDir))
+                        raise ValueError()
+
             except Exception:
-                print("Failed to make calibration extension for {}. Skipping.".format(scienceDir))
+                print("Failed to prep tagger in {}. Skipping.".format(scienceDir))
                 continue
 
             try:
@@ -1370,39 +1403,32 @@ class ProductTagger:
             except Exception:
                 print("Failed to make bad pixel mask extension for {}. It will not be included.".format(scienceDir))
                 bpm_file = None
+                
+            for sciFrame, skyFrame in zip(scienceFrames, skyFrames):
+                specific_filenames = filenames[:]
+                specific_descriptions = descriptions[:]
+                specific_types = types[:]
 
-            
-            for productType in ["uncorrected", "telluric_corrected", "fluxcal_AND_telluric_corrected"]:
+                specific_filenames.insert(0, sciFrame)
+                specific_descriptions.insert(0, CalibrationTagger.extensionDescriptions['MEMBERSCIENCE'])
+                specific_types.insert(0, 'member')
+
+                if skyFrame:
+                    specific_filenames.append(skyFrame)
+                    specific_descriptions.append(CalibrationTagger.extensionDescriptions['INPUTSKY'])
+                    specific_types.append('input')
+
                 try:
-                    self.tagProducts(scienceDir, productType, cal_ext, bpm_file)
+                    cal_ext = CalibrationTagger.makeProvenance(specific_filenames, specific_descriptions, specific_types)
                 except Exception:
-                    print("Failed to tag {} products in {}. Skipping.".format(productType, scienceDir))
+                    logging.error("Failed to make provenance extension for science frame {} in {}.".format(sciFrame, scienceDir))
+                    continue
 
-
-    def makeCalExt(self, scienceDir):
-        shift = glob.glob(os.path.join(scienceDir, "calibrations", "*_shift.fits"))
-        flat = glob.glob(os.path.join(scienceDir, "calibrations", "*_flat.fits"))
-        arc = glob.glob(os.path.join(scienceDir, "calibrations", "*_arc.fits"))
-        ronchi = glob.glob(os.path.join(scienceDir, "calibrations", "*_ronchi.fits"))
-
-        cals = [shift, flat, arc, ronchi]
-
-        if not all([len(x) <= 1 for x in cals]):
-            logging.error("A calibration file wasn't found in {}.".format(scienceDir))
-            raise IOError()
-
-        cals = [os.path.split(x[0])[-1] if x else "" for x in cals]
-
-        a1 = np.array(['Processed Shift File', 'Processed Flat', 'Processed Arc', 'Processed Ronchi'])
-        a2 = np.array(cals)
-        col1 = astropy.io.fits.Column(name='Calibration Type', format='50A', array=a1)
-        col2 = astropy.io.fits.Column(name='Filename', format='50A', array=a2)
-
-        cols = astropy.io.fits.ColDefs([col1, col2])
-
-        hdu = astropy.io.fits.BinTableHDU.from_columns(cols, name="CAL")
-
-        return hdu
+                for productType in ["uncorrected", "telluric_corrected", "fluxcal_AND_telluric_corrected"]:
+                    try:
+                        self.tagProduct(sciFrame, scienceDir, productType, cal_ext, bpm_file)
+                    except Exception:
+                        print("Failed to tag {} products in {}. Skipping.".format(productType, scienceDir))
 
 
     def getBPMFile(self, scienceDir):
@@ -1411,38 +1437,37 @@ class ProductTagger:
 
 
 
-    def tagProducts(self, scienceDir, productType, cal_ext, bpm_file):
+    def tagProduct(self, filename, scienceDir, productType, cal_ext, bpm_file):
+        import pdb; pdb.set_trace()
         if productType == "uncorrected":
             prefix = "ctfbrsn"
-            products = glob.glob(os.path.join(scienceDir, "products_"+productType, prefix+"N*"))
+            product = os.path.join(scienceDir, "products_"+productType, prefix+filename)
         elif productType == "telluric_corrected":
             prefix = "actfbrsn"
-            products = glob.glob(os.path.join(scienceDir, "products_"+productType, prefix+"N*"))
+            product = os.path.join(scienceDir, "products_"+productType, prefix+filename)
         elif productType == "fluxcal_AND_telluric_corrected":
             prefix = "factfbrsn"
-            products = glob.glob(os.path.join(scienceDir, "products_"+productType, prefix+"N*"))
+            product = os.path.join(scienceDir, "products_"+productType, prefix+filename)
         else:
             raise ValueError("Invalid product type: {}".format(productType))
 
-        for product in products:
-            try:
-                with astropy.io.fits.open(product, mode='update') as hdu1:
-                    #hdu1['PRIMARY'].header['DATALAB'] = hdu1['PRIMARY'].header['DATALAB']+'-'+prefix.upper()
-                    #hdu1['PRIMARY'].header['FLATIMAG'] = hdu1['PRIMARY'].header['FLATIMAG'].split(os.path.sep)[1]+'.fits'
-                    #hdu1['PRIMARY'].header['BPMFILE'] = hdu1['PRIMARY'].header['BPMFILE'].split(os.path.sep)[1]+'.pl'
-                    if not self.hasCalExt(hdu1):
-                        hdu1.append(cal_ext)
-                    hasBPMFlag = self.hasBPMExt(hdu1)
-                    hdu1.flush()
-                if not hasBPMFlag:
-                    iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
-                    fits.delval(product, "DATALAB", extname='BPM')
-                    fits.delval(product, "NSFLON1", extname='BPM')
-                    fits.delval(product, "NSFLOF1", extname='BPM')
+        try:
+            with astropy.io.fits.open(product, mode='update') as hdu1:
+                #hdu1['PRIMARY'].header['DATALAB'] = hdu1['PRIMARY'].header['DATALAB']+'-'+prefix.upper()
+                #hdu1['PRIMARY'].header['FLATIMAG'] = hdu1['PRIMARY'].header['FLATIMAG'].split(os.path.sep)[1]+'.fits'
+                #hdu1['PRIMARY'].header['BPMFILE'] = hdu1['PRIMARY'].header['BPMFILE'].split(os.path.sep)[1]+'.pl'
+                if not self.hasCalExt(hdu1):
+                    hdu1.append(cal_ext)
+                hasBPMFlag = self.hasBPMExt(hdu1)
+                hdu1.flush()
+            if not hasBPMFlag:
+                iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
+                fits.delval(product, "DATALAB", extname='BPM')
+                fits.delval(product, "NSFLON1", extname='BPM')
+                fits.delval(product, "NSFLOF1", extname='BPM')
 
-            except Exception:
-                print("Problem adding cal and bpm extension to {}. Skipping.".format(product))
-                continue
+        except Exception:
+            logging.error("Problem adding cal and bpm extension to {}.".format(product))
 
 
     def parseConfig(self, configFile):
@@ -1464,7 +1489,7 @@ class ProductTagger:
         return scienceDirectories
 
     def hasCalExt(self, hdulist):
-        return any([x.name == "CAL" for x in hdulist])
+        return any([x.name == CalibrationTagger.provenanceExtensionName for x in hdulist])
 
     def hasBPMExt(self, hdulist):
         return any([x.name == "BPM" for x in hdulist])
@@ -1520,11 +1545,11 @@ class CalibrationTagger:
         cals = Cals()
 
         try:
-            cals.flats = self.parseList(os.path.join(self.calDir, 'flatlist'))
-            cals.flatdarks = self.parseList(os.path.join(self.calDir, 'flatdarklist'))
-            cals.arcs = self.parseList(os.path.join(self.calDir, 'arclist'))
-            cals.arcdarks = self.parseList(os.path.join(self.calDir, 'arcdarklist'))
-            cals.ronchis = self.parseList(os.path.join(self.calDir, 'ronchilist'))
+            cals.flats = CalibrationTagger.parseList(os.path.join(self.calDir, 'flatlist'))
+            cals.flatdarks = CalibrationTagger.parseList(os.path.join(self.calDir, 'flatdarklist'))
+            cals.arcs = CalibrationTagger.parseList(os.path.join(self.calDir, 'arclist'))
+            cals.arcdarks = CalibrationTagger.parseList(os.path.join(self.calDir, 'arcdarklist'))
+            cals.ronchis = CalibrationTagger.parseList(os.path.join(self.calDir, 'ronchilist'))
             cals.flat_file = self.getCalFile(os.path.join(self.calDir, '*_flat.fits'))
             cals.dark_file = self.getCalFile(os.path.join(self.calDir, '*_dark.fits'))
             cals.shift_file = self.getCalFile(os.path.join(self.calDir, '*_shift.fits'))
@@ -1718,7 +1743,8 @@ class CalibrationTagger:
     def hasBPMExt(self, hdulist):
         return any([x.name == "BPM" for x in hdulist])
 
-    def parseList(self, listpath):
+    @staticmethod
+    def parseList(listpath):
         """
         Tries to open a list in listpath, asserts it's non-empty, and well-formed.
         """
