@@ -1377,9 +1377,9 @@ class ProductTagger:
                 filenames = [flat, ronchi, arc]
                 filenames = [x.split(os.path.sep)[-1] for x in filenames]
                 descriptions = [
-                        CalibrationTagger.extensionDescriptions['INPUTFLAT'],
-                        CalibrationTagger.extensionDescriptions['INPUTRONCHI'],
-                        CalibrationTagger.extensionDescriptions['INPUTARC']
+                        CalibrationTagger.extensionDescriptions['INPUT_FLAT'],
+                        CalibrationTagger.extensionDescriptions['INPUT_RONCHI'],
+                        CalibrationTagger.extensionDescriptions['INPUT_ARC']
                 ]
                 types = ['input', 'input', 'input']
 
@@ -1410,12 +1410,12 @@ class ProductTagger:
                 specific_types = types[:]
 
                 specific_filenames.insert(0, sciFrame)
-                specific_descriptions.insert(0, CalibrationTagger.extensionDescriptions['MEMBERSCIENCE'])
+                specific_descriptions.insert(0, CalibrationTagger.extensionDescriptions['MEMBER_SCIENCE'])
                 specific_types.insert(0, 'member')
 
                 if skyFrame:
                     specific_filenames.append(skyFrame)
-                    specific_descriptions.append(CalibrationTagger.extensionDescriptions['INPUTSKY'])
+                    specific_descriptions.append(CalibrationTagger.extensionDescriptions['INPUT_SKY'])
                     specific_types.append('input')
 
                 try:
@@ -1496,18 +1496,18 @@ class ProductTagger:
 
 class CalibrationTagger:
     extensionDescriptions = {
-                    "INPUTFLAT": "Processed flat field frame.",
-                    "INPUTRAWFLAT": "Raw flat field frame.",
-                    "INPUTDARK": "Processed dark frame.",
-                    "INPUTRAWDARK": "Raw dark frame.",
-                    "INPUTRONCHI": "Processed ronchi spatial calibration frame.",
-                    "INPUTARC": "Processed arc frame.",
-                    "INPUTSKY": "Raw sky frame used for sky subtraction.",
-                    "MEMBERFLAT": "Raw flat field frame.",
-                    "MEMBERDARK": "Raw dark frame.",
-                    "MEMBERRONCHI": "Raw ronchi spatial correction frame.",
-                    "MEMBERARC": "Raw arc frame.",
-                    "MEMBERSCIENCE": "Raw science frame."
+                    "INPUT_FLAT": "Processed flat field frame.",
+                    "INPUT_RAW_FLAT": "Raw flat field frame.",
+                    "INPUT_DARK": "Processed dark frame.",
+                    "INPUT_RAW_DARK": "Raw dark frame.",
+                    "INPUT_RONCHI": "Processed ronchi spatial calibration frame.",
+                    "INPUT_ARC": "Processed arc frame.",
+                    "INPUT_SKY": "Raw sky frame used for sky subtraction.",
+                    "MEMBER_FLAT": "Raw flat field frame.",
+                    "MEMBER_DARK": "Raw dark frame.",
+                    "MEMBER_RONCHI": "Raw ronchi spatial correction frame.",
+                    "MEMBER_ARC": "Raw arc frame.",
+                    "MEMBER_SCIENCE": "Raw science frame."
     }
 
     extensionColumnNames = {
@@ -1597,8 +1597,8 @@ class CalibrationTagger:
             filenames.append(cals.dark_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERFLAT']]*len(cals.flats)
-            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTDARK'])
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBER_FLAT']]*len(cals.flats)
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUT_DARK'])
             
             types = ['member']*len(cals.flats)
             types.append('input')
@@ -1607,7 +1607,7 @@ class CalibrationTagger:
             
             with fits.open(cals.flat_file, mode="update") as hdul:
                 # Put updates to processed flat headers here
-                if len(cals.flats) > 1 and "FLAT" not in hdul['PRIMARY'].header['DATALAB']:
+                if len(cals.flats) > 1 and "FLAT" not in hdul['PRIMARY'].header['DATALAB'].upper():
                     hdul['PRIMARY'].header['DATALAB'] += "-FLAT"
 
                 hasBPMFlag = self.hasBPMExt(hdul)
@@ -1632,8 +1632,8 @@ class CalibrationTagger:
             filenames.extend(cals.flats)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERDARK']]*len(cals.flatdarks)
-            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTRAWFLAT']]*len(cals.flats))
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBER_DARK']]*len(cals.flatdarks)
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUT_RAW_FLAT']]*len(cals.flats))
             
             types = ['member']*len(cals.flatdarks)
             types.extend(['input']*len(cals.flats))
@@ -1642,7 +1642,7 @@ class CalibrationTagger:
             
             with fits.open(cals.dark_file, mode="update") as hdul:
                 # Put updates to processed dark headers here
-                if len(cals.flatdarks) > 1 and "DARK" not in hdul['PRIMARY'].header['DATALAB']:
+                if len(cals.flatdarks) > 1 and "DARK" not in hdul['PRIMARY'].header['DATALAB'].upper():
                     hdul['PRIMARY'].header['DATALAB'] += "-DARK"
 
                 hdul.append(provenance_extension)
@@ -1662,9 +1662,9 @@ class CalibrationTagger:
             filenames.append(cals.flat_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERARC']]*len(cals.arcs)
-            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUTRAWDARK']]*len(cals.arcdarks))
-            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTFLAT'])
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBER_ARC']]*len(cals.arcs)
+            descriptions.extend([CalibrationTagger.extensionDescriptions['INPUT_RAW_DARK']]*len(cals.arcdarks))
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUT_FLAT'])
             
             types = ['member']*len(cals.arcs)
             types.extend(['input']*len(cals.arcdarks))
@@ -1674,7 +1674,7 @@ class CalibrationTagger:
             
             with fits.open(cals.arc_file, mode="update") as hdul:
                 # Put updates to processed arc headers here
-                if len(cals.arcs) > 1 and "ARC" not in hdul['PRIMARY'].header['DATALAB']:
+                if len(cals.arcs) > 1 and "ARC" not in hdul['PRIMARY'].header['DATALAB'].upper():
                     hdul['PRIMARY'].header['DATALAB'] += "-ARC"
 
                 #if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
@@ -1703,9 +1703,9 @@ class CalibrationTagger:
             filenames.append(cals.flat_file)
             filenames = [x.split(os.path.sep)[-1] for x in filenames] # Only want filename
             
-            descriptions = [CalibrationTagger.extensionDescriptions['MEMBERRONCHI']]*len(cals.ronchis)
-            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTDARK'])
-            descriptions.append(CalibrationTagger.extensionDescriptions['INPUTFLAT'])
+            descriptions = [CalibrationTagger.extensionDescriptions['MEMBER_RONCHI']]*len(cals.ronchis)
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUT_DARK'])
+            descriptions.append(CalibrationTagger.extensionDescriptions['INPUT_FLAT'])
             
             types = ['member']*len(cals.ronchis)
             types.append('input')
@@ -1715,7 +1715,7 @@ class CalibrationTagger:
             
             with fits.open(cals.ronchi_file, mode="update") as hdul:
                 # Put updates to processed ronchi headers here
-                if len(cals.ronchis) > 1 and "RONCHI" not in hdul['PRIMARY'].header['DATALAB']:
+                if len(cals.ronchis) > 1 and "RONCHI" not in hdul['PRIMARY'].header['DATALAB'].upper():
                     hdul['PRIMARY'].header['DATALAB'] += "-RONCHI"
                     hdul['PRIMARY'].header['OBSTYPE'] = "RONCHI"
 

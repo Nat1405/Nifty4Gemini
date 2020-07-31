@@ -127,12 +127,12 @@ def test_quickGN2014AQ85_uncorrected(tmpdir, monkeypatch):
     with fits.open(os.path.join(tmpdir, 'Titan', '20140428', 'K', 'obs12', 'products_uncorrected', 'ctfbrsnN20140428S0086.fits')) as hdul:
         assert hdul['PRIMARY'].header['DATALAB'] == 'GN-2014A-Q-85-12-002'
         assert hdul[PROVENANCE_EXT_NAME].data.tolist() == [
-                ('N20140428S0086.fits', CalibrationTagger.extensionDescriptions['MEMBERSCIENCE'], 'member'),
+                ('N20140428S0086.fits', CalibrationTagger.extensionDescriptions['MEMBER_SCIENCE'], 'member'),
 
-                ('N20140428S0174.fits', CalibrationTagger.extensionDescriptions['INPUTFLAT'], 'input'),
-                ('rnN20140428S0181_ronchi.fits', CalibrationTagger.extensionDescriptions['INPUTRONCHI'], 'input'),
-                ('wrn_N20140428S0085_arc.fits', CalibrationTagger.extensionDescriptions['INPUTARC'], 'input'),
-                ('N20140428S0087.fits', CalibrationTagger.extensionDescriptions['INPUTSKY'], 'input')
+                ('rnN20140428S0169_flat.fits', CalibrationTagger.extensionDescriptions['INPUT_FLAT'], 'input'),
+                ('rnN20140428S0181_ronchi.fits', CalibrationTagger.extensionDescriptions['INPUT_RONCHI'], 'input'),
+                ('wrnN20140428S0085_arc.fits', CalibrationTagger.extensionDescriptions['INPUT_ARC'], 'input'),
+                ('N20140428S0087.fits', CalibrationTagger.extensionDescriptions['INPUT_SKY'], 'input')
         ]
 
 
