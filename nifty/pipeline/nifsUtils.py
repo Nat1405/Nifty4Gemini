@@ -1438,7 +1438,6 @@ class ProductTagger:
 
 
     def tagProduct(self, filename, scienceDir, productType, cal_ext, bpm_file):
-        import pdb; pdb.set_trace()
         if productType == "uncorrected":
             prefix = "ctfbrsn"
             product = os.path.join(scienceDir, "products_"+productType, prefix+filename)
