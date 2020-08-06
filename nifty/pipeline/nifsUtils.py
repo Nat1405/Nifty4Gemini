@@ -1458,6 +1458,7 @@ class ProductTagger:
                 if not self.hasCalExt(hdu1):
                     hdu1.append(cal_ext)
                 hasBPMFlag = self.hasBPMExt(hdu1)
+                CalibrationTagger.fixBadWATKeywords(hdu1)
                 hdu1.flush()
             if not hasBPMFlag:
                 iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
@@ -1586,6 +1587,29 @@ class CalibrationTagger:
         return hdu
 
 
+    @staticmethod
+    def fixBadWATKeywords(hdul):
+        """
+        WATN_000 keywords are causing some pretty crazy astropy crashes. This parses for and removes them.
+        """
+        for hdu in hdul:
+            if 'WAT1_000' in hdu.header:
+                for i in reversed(range(999)):    
+                    if 'WAT1_{:03d}'.format(i) in hdu.header:
+                        if i == 999:
+                            raise ValueError("WAT1_999 encountered: fixBadWATKeywords only supports WAT1_000 to WAT1_998.")
+                        hdu.header['WAT1_{:03d}'.format(i+1)] = hdu.header['WAT1_{:03d}'.format(i)]
+                hdu.header.remove('WAT1_000')
+            
+            if 'WAT2_000' in hdu.header:
+                for i in reversed(range(999)):    
+                    if 'WAT2_{:03d}'.format(i) in hdu.header:
+                        if i == 999:
+                            raise ValueError("WAT1_999 encountered: fixBadWATKeywords only supports WAT1_000 to WAT1_998.")
+                        hdu.header['WAT2_{:03d}'.format(i+1)] = hdu.header['WAT2_{:03d}'.format(i)]
+                hdu.header.remove('WAT2_000')
+
+
     def tagFlat(self, cals):
         """ Flats contain:
             - raw flats as members
@@ -1612,6 +1636,7 @@ class CalibrationTagger:
 
                 hasBPMFlag = self.hasBPMExt(hdul)
                 hdul.append(provenance_extension)
+                CalibrationTagger.fixBadWATKeywords(hdul)
                 hdul.flush()
             if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.flat_file+"[BPM,type=mask,append]")
@@ -1646,6 +1671,7 @@ class CalibrationTagger:
                     hdul['PRIMARY'].header['DATALAB'] += "-DARK"
 
                 hdul.append(provenance_extension)
+                CalibrationTagger.fixBadWATKeywords(hdul)
                 hdul.flush()
         except Exception:
             logging.error("Problem tagging {}.".format(cals.dark_file))     
@@ -1682,6 +1708,7 @@ class CalibrationTagger:
 
                 hasBPMFlag = self.hasBPMExt(hdul)
                 hdul.append(provenance_extension)
+                CalibrationTagger.fixBadWATKeywords(hdul)
                 hdul.flush()
             if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.arc_file+"[BPM,type=mask,append]")
@@ -1726,6 +1753,7 @@ class CalibrationTagger:
                 
                 hasBPMFlag = self.hasBPMExt(hdul)
                 hdul.append(provenance_extension)
+                CalibrationTagger.fixBadWATKeywords(hdul)
                 hdul.flush()
             if not hasBPMFlag:
                 iraf.imcopy(cals.bpm_file, cals.ronchi_file+"[BPM,type=mask,append]")
