@@ -1369,6 +1369,7 @@ class ProductTagger:
                 # Sky frames make things a bit annoying because each product has a different sky frame,
                 # So we need slightly distinct Provenance extensions for each product.
 
+                logging.info("Tagging products in {}.".format(scienceDir))
                 # Common to all provenance extensions
                 flat = glob.glob(os.path.join(scienceDir, 'calibrations', '*_flat.fits'))[0]
                 ronchi = glob.glob(os.path.join(scienceDir, 'calibrations', '*_ronchi.fits'))[0]
@@ -1395,13 +1396,13 @@ class ProductTagger:
                         raise ValueError()
 
             except Exception:
-                print("Failed to prep tagger in {}. Skipping.".format(scienceDir))
+                logging.error("Failed to prep tagger in {}. Skipping.".format(scienceDir))
                 continue
 
             try:
                 bpm_file = self.getBPMFile(scienceDir)
             except Exception:
-                print("Failed to make bad pixel mask extension for {}. It will not be included.".format(scienceDir))
+                logging.error("Failed to make bad pixel mask extension for {}. It will not be included.".format(scienceDir))
                 bpm_file = None
                 
             for sciFrame, skyFrame in zip(scienceFrames, skyFrames):
@@ -1428,7 +1429,7 @@ class ProductTagger:
                     try:
                         self.tagProduct(sciFrame, scienceDir, productType, cal_ext, bpm_file)
                     except Exception:
-                        print("Failed to tag {} products in {}. Skipping.".format(productType, scienceDir))
+                        logging.error("Failed to tag {} products in {}. Skipping.".format(productType, scienceDir))
 
 
     def getBPMFile(self, scienceDir):
