@@ -1513,7 +1513,7 @@ class CalibrationTagger:
     extensionColumnNames = {
                     "label": "Filename",
                     "description": "Description",
-                    "type": "Type (member or input)"
+                    "type": "Type"
     }
 
     provenanceExtensionName = "PROVENANCE"
