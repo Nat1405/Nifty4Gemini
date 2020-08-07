@@ -1671,6 +1671,8 @@ class CalibrationTagger:
                 if len(cals.flatdarks) > 1 and "DARK" not in hdul['PRIMARY'].header['DATALAB'].upper():
                     hdul['PRIMARY'].header['DATALAB'] += "-DARK"
 
+                hdul['PRIMARY'].header['OBSTYPE'] = 'DARK'
+
                 hdul.append(provenance_extension)
                 CalibrationTagger.fixBadWATKeywords(hdul)
                 hdul.flush()
@@ -1745,7 +1747,8 @@ class CalibrationTagger:
                 # Put updates to processed ronchi headers here
                 if len(cals.ronchis) > 1 and "RONCHI" not in hdul['PRIMARY'].header['DATALAB'].upper():
                     hdul['PRIMARY'].header['DATALAB'] += "-RONCHI"
-                    hdul['PRIMARY'].header['OBSTYPE'] = "RONCHI"
+                
+                hdul['PRIMARY'].header['OBSTYPE'] = "RONCHI"
 
                 #if ".fits" not in hdul['PRIMARY'].header['FLATIMAG']:
                 #    hdul['PRIMARY'].header['FLATIMAG'] = hdul['PRIMARY'].header['FLATIMAG']+".fits"
