@@ -1256,7 +1256,7 @@ def writeWithTempFile(request, filename):
             f.write(chunk)
             download_checksum.update(chunk)
         if server_checksum and (server_checksum != download_checksum.hexdigest()):
-            logging.error("Problem downloading {} from {}.".format(filename, url))
+            logging.error("Problem downloading {}.".format(filename))
             raise IOError
         f.seek(0)
         with open(filename, 'w') as out_fp:
