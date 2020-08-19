@@ -37,6 +37,8 @@ import numpy as np
 from xml.dom.minidom import parseString
 from pyraf import iraf
 from astroquery.cadc import Cadc
+from astropy.visualization import ZScaleInterval
+import matplotlib.pyplot as plt
 
 # LOCAL
 
@@ -1364,7 +1366,8 @@ class ProductTagger:
         And sometimes have:
             - A sky frame.
         """
-        for scienceDir in self.scienceDirectories:  
+        for scienceDir in self.scienceDirectories:
+            scienceDir = scienceDir.lstrip(' ')
             try:
                 # Sky frames make things a bit annoying because each product has a different sky frame,
                 # So we need slightly distinct Provenance extensions for each product.
@@ -1460,6 +1463,7 @@ class ProductTagger:
                     hdu1.append(cal_ext)
                 hasBPMFlag = self.hasBPMExt(hdu1)
                 CalibrationTagger.fixBadWATKeywords(hdu1)
+                data = hdu1['SCI'].data
                 hdu1.flush()
             if not hasBPMFlag:
                 iraf.imcopy(bpm_file, product+"[BPM,type=mask,append]")
@@ -1467,8 +1471,14 @@ class ProductTagger:
                 fits.delval(product, "NSFLON1", extname='BPM')
                 fits.delval(product, "NSFLOF1", extname='BPM')
 
+            white_light_data = np.flipud(np.median(data, axis=0))
+            interval = ZScaleInterval()
+            white_light_data = interval(white_light_data)
+            preview_filename = filename.split('.')[0]+'.png'
+            plt.imsave(os.path.join(scienceDir, "products_"+productType, prefix+preview_filename), white_light_data, cmap='inferno')
+
         except Exception:
-            logging.error("Problem adding cal and bpm extension to {}.".format(product))
+            logging.error("Problem adding provenance and bpm extension to {}.".format(product))
 
 
     def parseConfig(self, configFile):
