@@ -1227,6 +1227,8 @@ def getFile(url):
     # Parse out filename from header
     try:
         filename = re.findall("filename=(.+)", r.headers['Content-Disposition'])[0]
+        # Some filenames now have extra quotation marks
+        filename = filename.replace('"', '')
     except KeyError:
         # 'Content-Disposition' header wasn't found, so parse filename from URL
         # Typical URL looks like:
