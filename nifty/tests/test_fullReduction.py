@@ -34,8 +34,8 @@ def test_GN2019BFT101(tmpdir):
     nifty.nifsPipeline.start(args)
 
     assert os.path.exists(os.path.join(tmpdir, 'Mrk955', '20191027', 'K', 'obs31', 'products_uncorrected', 'ctfbrsnN20191027S0084.fits'))
-    assert os.path.exists(os.path.join(tmpdir, 'Mrk955', '20191027', 'K', 'obs31', 'products_telluric_corrected', 'actfbrsnN20191027S0084.fits'))
-    assert os.path.exists(os.path.join(tmpdir, 'Mrk955', '20191027', 'K', 'obs31', 'products_fluxcal_AND_telluric_corrected', 'factfbrsnN20191027S0084.fits'))
+    #assert os.path.exists(os.path.join(tmpdir, 'Mrk955', '20191027', 'K', 'obs31', 'products_telluric_corrected', 'actfbrsnN20191027S0084.fits'))
+    #assert os.path.exists(os.path.join(tmpdir, 'Mrk955', '20191027', 'K', 'obs31', 'products_fluxcal_AND_telluric_corrected', 'factfbrsnN20191027S0084.fits'))
 
 
 def test_quickGN2014AQ85_uncorrected(tmpdir, monkeypatch):
