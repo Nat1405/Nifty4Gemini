@@ -1358,8 +1358,8 @@ def rewriteCalibrationList(list_name):
         try:
             with open('arclist') as f:
                 lines = f.readlines()
-                frames = [x.rstrip('\n')+'.fits' for x in frames]
-            arc_exp_times = [HeaderInfo(frame).exptime for frame in frames]
+                lines = [x.rstrip('\n')+'.fits' for x in lines]
+            arc_exp_times = [HeaderInfo(line).exptime for line in lines]
         except Exception:
             arc_exp_times = None
         with open('arcdarklist', 'w') as f:
