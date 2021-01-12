@@ -219,17 +219,22 @@ def start(kind, telluricDirectoryList="", scienceDirectoryList=""):
         iraffunctions.chdir(pwd)
 
         # Copy relevant calibrations over to the science directory.
-        # Open and store the name of the MDF shift reference file from shiftfile into shift.
-        shift = glob.glob('calibrations/*_shift.fits')[0].split('.')[0]
-        # Open and store the name of the flat frame
-        flat = glob.glob('calibrations/*_flat.fits')[0].split('.')[0]
-        # Open and store the bad pixel mask
-        finalBadPixelMask = glob.glob('calibrations/*_sflat_bpm.pl')[0].split('.')[0]
-        # Ronchi, arc and database must all be in local calibrations directory
-        # Open and store the name of the reduced spatial correction ronchi flat frame name from ronchifile in ronchi.
-        ronchi = glob.glob('calibrations/*_ronchi.fits')[0].split('.')[0]
-        # Open and store the name of the reduced wavelength calibration arc frame from arclist in arc.
-        arc = glob.glob('calibrations/*_arc.fits')[0].split('.')[0]
+        try:
+            # Open and store the name of the MDF shift reference file from shiftfile into shift.
+            shift = glob.glob('calibrations/*_shift.fits')[0].split('.')[0]
+            # Open and store the name of the flat frame
+            flat = glob.glob('calibrations/*_flat.fits')[0].split('.')[0]
+            # Open and store the bad pixel mask
+            finalBadPixelMask = glob.glob('calibrations/*_sflat_bpm.pl')[0].split('.')[0]
+            # Ronchi, arc and database must all be in local calibrations directory
+            # Open and store the name of the reduced spatial correction ronchi flat frame name from ronchifile in ronchi.
+            ronchi = glob.glob('calibrations/*_ronchi.fits')[0].split('.')[0]
+            # Open and store the name of the reduced wavelength calibration arc frame from arclist in arc.
+            arc = glob.glob('calibrations/*_arc.fits')[0].split('.')[0]
+        except IndexError:
+            logging.warning("Insufficient calibrations found in science directory {}. Skipping.".format(observationDirectory))
+            scienceDirectoryList, telluricDirectoryList = removeFromLists(observationDirectory, scienceDirectoryList, telluricDirectoryList)
+            continue
 
         if os.path.exists(os.path.split(ronchi)[-1]+".fits"):
             if over:
@@ -855,6 +860,15 @@ def copyExtracted(scienceFrameList, over):
             logging.info("Output file exists and -over not set - skipping copy combined one D spectra")
     else:
         shutil.copy(spectra, ExtractedOneD+'/combined'+date+'_'+obsid+'.fits')
+
+
+def removeFromLists(observationDirectory, scienceDirectoryList, telluricDirectoryList):
+    """Remove a given observationDirectory from two lists of directories."""
+    scienceDirectoryList = filter(lambda x: x != observationDirectory, scienceDirectoryList)
+    telluricDirectoryList = filter(lambda x: x != observationDirectory, telluricDirectoryList)
+
+    return scienceDirectoryList, telluricDirectoryList
+
 
 #--------------------------------------------------------------------------------------------------------------------------------#
 
