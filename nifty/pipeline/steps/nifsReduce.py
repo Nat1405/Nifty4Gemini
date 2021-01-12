@@ -789,6 +789,12 @@ def extractOneD(inputList, kind, log, over, extractionXC=15.0, extractionYC=33.0
     inputList = checkLists(inputList, '.', 'xtfbrsn', '.fits')
     # Combine all the 1D spectra to one final output file with the name of the first input file.
     combined = str(inputList[0]).strip()
+
+    # Fixes IRAF bug that can't combine more than n files together.
+    if (len(inputList) > 1) and (len(inputList) > 10):
+        logging.warning("Too many files provided to iraf.gemcombine. Taking the first 10.")
+        inputList = inputList[:10]
+
     if len(inputList) > 1:
         if os.path.exists("gxtfbrsn"+combined+".fits"):
             if over:
