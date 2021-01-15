@@ -265,7 +265,7 @@ def makeDiagnostics():
             count_science += 1
             uncorrectedStatus = 'no'
             fluxCalStatus = 'no'
-            if os.path.exists(os.path.join(os.getcwd(), headers.objname, 'Merged_uncorrected', str(headers.date)+'_obs'+str(headers.ID), 'ctfbrsn'+os.path.split(frame)[-1])):
+            if os.path.exists(os.path.join(os.getcwd(), headers.objname, str(headers.date), str(headers.grat), 'obs'+str(headers.ID), 'products_uncorrected', 'ctfbrsn'+os.path.split(frame)[-1])):
                 count_uncorrected += 1
                 uncorrectedStatus = 'yes'
             if os.path.exists(os.path.join(os.getcwd(), headers.objname, 'Merged_telCorAndFluxCalibrated', str(headers.date)+'_obs'+str(headers.ID), 'factfbrsn'+os.path.split(frame)[-1])):  
