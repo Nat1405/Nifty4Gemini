@@ -196,6 +196,14 @@ def start(kind, telluricDirectoryList="", scienceDirectoryList=""):
     # Loop through all the observation (telluric or science) directories to perform a reduction on each one.
     for observationDirectory in observationDirectoryList:
 
+        # Reload observation directory specific config on each pass through
+        # the loop. This is a hack, because there really should have been
+        # a way to specify config for observations individually.
+        with open('./config.cfg') as config_file:
+            config = ConfigObj(config_file, unrepr=True)
+            telluricSkySubtraction = telluricReductionConfig['telluricSkySubtraction']
+            scienceSkySubtraction = scienceReductionConfig['scienceSkySubtraction']
+
         ###########################################################################
         ##                                                                       ##
         ##                  BEGIN - OBSERVATION SPECIFIC SETUP                   ##
@@ -278,18 +286,15 @@ def start(kind, telluricDirectoryList="", scienceDirectoryList=""):
             # Read the list of sky frames in the observation directory.
             try:
                 skyFrameList = open("skyFrameList", "r").readlines()
-                skyFrameList = [frame.strip() for frame in skyFrameList]
-            except:
-                logging.info("\n#####################################################################")
-                logging.info("#####################################################################")
-                logging.info("")
-                logging.info("     WARNING in reduce: No sky frames were found in a directory.")
-                logging.info("              Please make a skyFrameList in: " + str(os.getcwd()))
-                logging.info("")
-                logging.info("#####################################################################")
-                logging.info("#####################################################################\n")
-                raise SystemExit
-            sky = skyFrameList[0]
+            except IOError:
+                logging.warning("No skyFrameList found in {}.".format(os.getcwd()))
+            skyFrameList = [frame.strip() for frame in skyFrameList]
+            try:
+                sky = skyFrameList[0]
+            except IndexError:
+                logging.warning("Sky frame list was empty in {}.".format(os.getcwd()))
+                telluricSkySubtraction = False
+                scienceSkySubtraction = False
 
         # If we are doing a telluric reduction, open the list of telluric frames in the observation directory.
         # If we are doing a science reduction, open the list of science frames in the observation directory.

@@ -650,7 +650,8 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
     # make skyFrameList/scienceFrameList, and that directory contains a non-empty skyFrameList and scienceFrameList.
     for science_directory in list(scienceDirList):
         try:
-            makeSkyLists(science_directory, skyThreshold, science=True)
+            #makeSkyLists(science_directory, skyThreshold, science=True)
+            clusterScienceSky(science_directory, science=True)
             checkSkyFrameDivision(science_directory, science=True)
         except ObservationDirError as e:
             logging.error("Science directory {} has a problem with the scienceFrameList or skyFrameList. Removing that directory from the list of directories to reduce.".format(science_directory), exc_info=True)
@@ -664,7 +665,8 @@ def sortScienceAndTelluric(allfilelist, sciImageList, rawPath, skyThreshold):
     # Check that telluric directory contains a non-empty skyFrameList and scienceFrameList.
     for telluric_directory in list(telDirList):
         try:
-            makeSkyLists(telluric_directory, skyThreshold, science=False)
+            #makeSkyLists(telluric_directory, skyThreshold, science=False)
+            clusterScienceSky(science_directory, science=False)
         except SkyFrameError as e:
             logging.warning("Possibly no telluric sky frames found in {}. Turning off telluric sky subtraction for all telluric observations.".format(telluric_directory))
             turnOffTelluricSkySub()
@@ -1565,7 +1567,7 @@ def checkSkyFrameDivision(observation_dir, science=True):
         try:
             assert len(sky_frames) > 0
         except AssertionError:
-            raise SkyFrameError("There was a problem with the skyFrameList in {}.".format(observation_dir))
+            logging.warning("No sky frames were found in {}!".format(observation_dir))
 
 
 def makeSkyLists(science_dir, skyThreshold, science=True):
@@ -1655,6 +1657,86 @@ def checkStandardWavelength(observationDirectory):
             return
     raise WavelengthError("A non standard wavelength configuration of {} grating and {} central wavelength was detected in frame {}.".format(headers.grat, headers.crWav, frame))
 
+def get_frame_info(frames):
+    """Return lists of poffs, qoffs, median counts."""
+    poffs = []
+    qoffs = []
+    median_counts = []
+
+    for frame in frames:
+        with fits.open(frame) as hdul:
+            poffs.append(hdul[0].header['POFFSET'])
+            qoffs.append(hdul[0].header['QOFFSET'])
+            median_counts.append(np.median(hdul[1].data))
+
+    return poffs, qoffs, median_counts
+
+
+def make_clusters(poffs, qoffs, median_counts, frames):
+    """Cluster the data."""
+    x = np.array([[p, q] for p, q in zip(poffs, qoffs)])
+    if len(np.unique(x)) <= 1:
+        # Clustering will fail without distinct items,
+        # so put all frames in one list in lieu of better solution.
+        return frames, [], None, None
+    kmeans = KMeans(n_clusters=2, random_state=0).fit(x)
+    cluster_0 = []
+    cluster_1 = []
+    medians_0 = []
+    medians_1 = []
+    for frame, lab, med in zip(frames, kmeans.labels_, median_counts):
+        if lab:
+            cluster_1.append(frame)
+            medians_1.append(med)
+        else:
+            cluster_0.append(frame)
+            medians_0.append(med)
+
+    return cluster_0, cluster_1, medians_0, medians_1
+
+
+def label_clusters(cluster_0, cluster_1, medians_0, medians_1):
+    """Label based on brightness.
+    Also, if only one cluster has frames in it, label that as
+    science and the other as sky.
+    """
+    if (not medians_0) and (not medians_1):
+        return cluster_1, cluster_0
+    if (len(cluster_0) == 0 and len(cluster_1) > 0):
+        return cluster_0, cluster_1
+    if (len(cluster_1) == 0 and len(cluster_0) > 0):
+        return cluster_1, cluster_0
+    if len(cluster_0) > 0 and len(cluster_1) > 0:
+        if np.median(medians_0) > np.median(medians_1):
+            return cluster_1, cluster_0
+        else:
+            return cluster_0, cluster_1
+    else:
+        return cluster_1, cluster_0
+
+
+def clusterScienceSky(dirname, science=True):
+    logging.info("Clustering science and sky frames in {}.".format(dirname))
+    frames = glob.glob(os.path.join(dirname, "*.fits"))
+    poffs, qoffs, median_counts = get_frame_info(frames)
+    cluster_0, cluster_1, medians_0, medians_1 = make_clusters(poffs, qoffs, median_counts, frames)
+    sky_frames, sci_frames = label_clusters(cluster_0, cluster_1, medians_0, medians_1)
+    if len(sci_frames) == 0:
+        logging.warning("Empty scienceFrameList found in {}!".format(dirname))
+
+    with open(os.path.join(dirname, "skyFrameList"), 'w') as f_sky:
+        if science:
+            with open(os.path.join(dirname, "scienceFrameList"), 'w') as f_science:
+                for frame in sky_frames:
+                    f_sky.write(os.path.basename(frame) + '\n')
+                for frame in sci_frames:
+                    f_science.write(os.path.basename(frame) + '\n')
+        else:
+            with open(os.path.join(dirname, "tellist"), 'w') as f_science:
+                for frame in sky_frames:
+                    f_sky.write(os.path.basename(frame) + '\n')
+                for frame in sci_frames:
+                    f_science.write(os.path.basename(frame) + '\n')
 
 #--------------------------- End of Functions ---------------------------------#
 
